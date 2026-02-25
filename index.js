@@ -18,42 +18,49 @@ const SERVICES = {
     GRADE: process.env.GRADE_SERVICE_URL || 'http://localhost:5004',
 };
 
-// ── Proxy Rules (NO pathRewrite — forward as-is) ──────────────────
+// ── Proxy Rules (Preserving /api prefix for service compatibility) ─
 
 // Member 1: Student & Auth Service
 app.use('/api/students', createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
+    pathRewrite: { '^/api/students': '/api/students' },
 }));
 app.use('/api/auth', createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
+    pathRewrite: { '^/api/auth': '/api/auth' },
 }));
 
 // Member 2: Course Service
 app.use('/api/courses', createProxyMiddleware({
     target: SERVICES.COURSE,
     changeOrigin: true,
+    pathRewrite: { '^/api/courses': '/api/courses' },
 }));
 
 // Member 3: Enrollment Service (YOUR SERVICE)
-app.use('/api/enroll', createProxyMiddleware({
-    target: SERVICES.ENROLLMENT,
-    changeOrigin: true,
-}));
 app.use('/api/enrollments', createProxyMiddleware({
     target: SERVICES.ENROLLMENT,
     changeOrigin: true,
+    pathRewrite: { '^/api/enrollments': '/api/enrollments' },
+}));
+app.use('/api/enroll', createProxyMiddleware({
+    target: SERVICES.ENROLLMENT,
+    changeOrigin: true,
+    pathRewrite: { '^/api/enroll': '/api/enroll' },
 }));
 
 // Member 4: Grade Service
 app.use('/api/grades', createProxyMiddleware({
     target: SERVICES.GRADE,
     changeOrigin: true,
+    pathRewrite: { '^/api/grades': '/api/grades' },
 }));
 app.use('/api/gpa', createProxyMiddleware({
     target: SERVICES.GRADE,
     changeOrigin: true,
+    pathRewrite: { '^/api/gpa': '/api/gpa' },
 }));
 
 // ── Health Check ──────────────────────────────────────────────────
