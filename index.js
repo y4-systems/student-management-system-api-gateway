@@ -18,49 +18,36 @@ const SERVICES = {
     GRADE: process.env.GRADE_SERVICE_URL || 'http://localhost:5004',
 };
 
-// ── Proxy Rules (Preserving /api prefix for service compatibility) ─
+// ── Proxy Rules (API Gateway owns /api prefix) ───────────────────
+// We mount proxies at /api so Express strips the prefix before forwarding.
+// This follows the clean architecture rule: individual services should not care about /api.
 
 // Member 1: Student & Auth Service
-app.use('/api/students', createProxyMiddleware({
+app.use('/api', createProxyMiddleware({
+    pathFilter: ['/students', '/auth'],
     target: SERVICES.STUDENT,
     changeOrigin: true,
-    pathRewrite: { '^/api/students': '/api/students' },
-}));
-app.use('/api/auth', createProxyMiddleware({
-    target: SERVICES.STUDENT,
-    changeOrigin: true,
-    pathRewrite: { '^/api/auth': '/api/auth' },
 }));
 
 // Member 2: Course Service
-app.use('/api/courses', createProxyMiddleware({
+app.use('/api', createProxyMiddleware({
+    pathFilter: '/courses',
     target: SERVICES.COURSE,
     changeOrigin: true,
-    pathRewrite: { '^/api/courses': '/api/courses' },
 }));
 
 // Member 3: Enrollment Service (YOUR SERVICE)
-app.use('/api/enrollments', createProxyMiddleware({
+app.use('/api', createProxyMiddleware({
+    pathFilter: ['/enrollments', '/enroll'],
     target: SERVICES.ENROLLMENT,
     changeOrigin: true,
-    pathRewrite: { '^/api/enrollments': '/api/enrollments' },
-}));
-app.use('/api/enroll', createProxyMiddleware({
-    target: SERVICES.ENROLLMENT,
-    changeOrigin: true,
-    pathRewrite: { '^/api/enroll': '/api/enroll' },
 }));
 
 // Member 4: Grade Service
-app.use('/api/grades', createProxyMiddleware({
+app.use('/api', createProxyMiddleware({
+    pathFilter: ['/grades', '/gpa'],
     target: SERVICES.GRADE,
     changeOrigin: true,
-    pathRewrite: { '^/api/grades': '/api/grades' },
-}));
-app.use('/api/gpa', createProxyMiddleware({
-    target: SERVICES.GRADE,
-    changeOrigin: true,
-    pathRewrite: { '^/api/gpa': '/api/gpa' },
 }));
 
 // ── Health Check ──────────────────────────────────────────────────
