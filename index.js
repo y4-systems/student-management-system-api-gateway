@@ -22,27 +22,31 @@ const SERVICES = {
 // ── Proxy Rules ───────────────────────────────────────────────────
 
 // Member 1: Student & Auth Service
-app.use(['/api/students', '/api/auth'], createProxyMiddleware({
+app.use(createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
+    pathFilter: ['/api/students', '/api/auth'],
 }));
 
 // Member 2: Course Service
-app.use('/api/courses', createProxyMiddleware({
+app.use(createProxyMiddleware({
     target: SERVICES.COURSE,
     changeOrigin: true,
+    pathFilter: '/api/courses',
 }));
 
 // Member 3: Enrollment Service (YOUR SERVICE)
-app.use(['/api/enroll', '/api/enrollments'], createProxyMiddleware({
+app.use(createProxyMiddleware({
     target: SERVICES.ENROLLMENT,
     changeOrigin: true,
+    pathFilter: ['/api/enroll', '/api/enrollments'],
 }));
 
 // Member 4: Grade Service
-app.use(['/api/grades', '/api/gpa'], createProxyMiddleware({
+app.use(createProxyMiddleware({
     target: SERVICES.GRADE,
     changeOrigin: true,
+    pathFilter: ['/api/grades', '/api/gpa'],
 }));
 
 // ── Health Check ──────────────────────────────────────────────────
