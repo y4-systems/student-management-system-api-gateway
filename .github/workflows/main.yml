@@ -1,0 +1,80 @@
+name: API Gateway CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  IMAGE_NAME: api-gateway
+  NODE_VERSION: "18"
+
+jobs:
+  # ── Job 1: Build & Push to Docker Hub ──────────────────────────
+  docker-build-and-push:
+    name: Build & Push to Docker Hub
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: nuwanifonseka/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=registry,ref=nuwanifonseka/${{ env.IMAGE_NAME }}:latest
+          cache-to: type=inline
+
+  # ── Job 2: Deploy to Google Cloud Run ──────────────────────────
+  deploy:
+    name: Deploy to Google Cloud Run
+    runs-on: ubuntu-latest
+    needs: docker-build-and-push
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: api-gateway
+          region: us-central1
+          image: docker.io/nuwanifonseka/${{ env.IMAGE_NAME }}:latest
+          flags: --allow-unauthenticated --port=8080
+          env_vars: |
+            ENROLLMENT_SERVICE_URL=https://enrollment-service-763150334229.us-central1.run.app
+            STUDENT_SERVICE_URL=${{ secrets.STUDENT_SERVICE_URL }}
+            COURSE_SERVICE_URL=${{ secrets.COURSE_SERVICE_URL }}
+            GRADE_SERVICE_URL=${{ secrets.GRADE_SERVICE_URL }}
+
+      - name: Summary
+        run: |
+          echo "✅ Deployment triggered for api-gateway"
+          echo "🐳 Image: nuwanifonseka/api-gateway:latest"
