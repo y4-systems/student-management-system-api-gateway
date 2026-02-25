@@ -26,6 +26,7 @@ app.use(createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
     pathFilter: ['/api/students', '/api/auth'],
+    pathRewrite: (path, req) => req.originalUrl,
 }));
 
 // Member 2: Course Service
@@ -33,6 +34,7 @@ app.use(createProxyMiddleware({
     target: SERVICES.COURSE,
     changeOrigin: true,
     pathFilter: '/api/courses',
+    pathRewrite: (path, req) => req.originalUrl,
 }));
 
 // Member 3: Enrollment Service (YOUR SERVICE)
@@ -40,6 +42,7 @@ app.use(createProxyMiddleware({
     target: SERVICES.ENROLLMENT,
     changeOrigin: true,
     pathFilter: ['/api/enroll', '/api/enrollments'],
+    pathRewrite: (path, req) => req.originalUrl,
 }));
 
 // Member 4: Grade Service
@@ -47,6 +50,7 @@ app.use(createProxyMiddleware({
     target: SERVICES.GRADE,
     changeOrigin: true,
     pathFilter: ['/api/grades', '/api/gpa'],
+    pathRewrite: (path, req) => req.originalUrl,
 }));
 
 // ── Health Check ──────────────────────────────────────────────────
