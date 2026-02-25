@@ -22,35 +22,46 @@ const SERVICES = {
 // ── Proxy Rules ───────────────────────────────────────────────────
 
 // Member 1: Student & Auth Service
-app.use(createProxyMiddleware({
+app.use('/api/students', createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
-    pathFilter: ['/api/students', '/api/auth'],
-    pathRewrite: (path, req) => req.originalUrl,
+    pathRewrite: (path) => '/api/students' + path,
+}));
+app.use('/api/auth', createProxyMiddleware({
+    target: SERVICES.STUDENT,
+    changeOrigin: true,
+    pathRewrite: (path) => '/api/auth' + path,
 }));
 
 // Member 2: Course Service
-app.use(createProxyMiddleware({
+app.use('/api/courses', createProxyMiddleware({
     target: SERVICES.COURSE,
     changeOrigin: true,
-    pathFilter: '/api/courses',
-    pathRewrite: (path, req) => req.originalUrl,
+    pathRewrite: (path) => '/api/courses' + path,
 }));
 
 // Member 3: Enrollment Service (YOUR SERVICE)
-app.use(createProxyMiddleware({
+app.use('/api/enroll', createProxyMiddleware({
     target: SERVICES.ENROLLMENT,
     changeOrigin: true,
-    pathFilter: ['/api/enroll', '/api/enrollments'],
-    pathRewrite: (path, req) => req.originalUrl,
+    pathRewrite: (path) => '/api/enroll' + path,
+}));
+app.use('/api/enrollments', createProxyMiddleware({
+    target: SERVICES.ENROLLMENT,
+    changeOrigin: true,
+    pathRewrite: (path) => '/api/enrollments' + path,
 }));
 
 // Member 4: Grade Service
-app.use(createProxyMiddleware({
+app.use('/api/grades', createProxyMiddleware({
     target: SERVICES.GRADE,
     changeOrigin: true,
-    pathFilter: ['/api/grades', '/api/gpa'],
-    pathRewrite: (path, req) => req.originalUrl,
+    pathRewrite: (path) => '/api/grades' + path,
+}));
+app.use('/api/gpa', createProxyMiddleware({
+    target: SERVICES.GRADE,
+    changeOrigin: true,
+    pathRewrite: (path) => '/api/gpa' + path,
 }));
 
 // ── Health Check ──────────────────────────────────────────────────
