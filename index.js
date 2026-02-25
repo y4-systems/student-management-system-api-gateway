@@ -11,7 +11,6 @@ app.use(cors());
 app.use(morgan('dev'));
 
 // ── Service URL Configuration ─────────────────────────────────────
-// These should be set as environment variables in Cloud Run
 const SERVICES = {
     STUDENT: process.env.STUDENT_SERVICE_URL || 'http://localhost:5001',
     COURSE: process.env.COURSE_SERVICE_URL || 'http://localhost:5002',
@@ -19,49 +18,42 @@ const SERVICES = {
     GRADE: process.env.GRADE_SERVICE_URL || 'http://localhost:5004',
 };
 
-// ── Proxy Rules ───────────────────────────────────────────────────
+// ── Proxy Rules (NO pathRewrite — forward as-is) ──────────────────
 
 // Member 1: Student & Auth Service
 app.use('/api/students', createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
-    pathRewrite: (path) => '/api/students' + path,
 }));
 app.use('/api/auth', createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
-    pathRewrite: (path) => '/api/auth' + path,
 }));
 
 // Member 2: Course Service
 app.use('/api/courses', createProxyMiddleware({
     target: SERVICES.COURSE,
     changeOrigin: true,
-    pathRewrite: (path) => '/api/courses' + path,
 }));
 
 // Member 3: Enrollment Service (YOUR SERVICE)
 app.use('/api/enroll', createProxyMiddleware({
     target: SERVICES.ENROLLMENT,
     changeOrigin: true,
-    pathRewrite: (path) => '/api/enroll' + path,
 }));
 app.use('/api/enrollments', createProxyMiddleware({
     target: SERVICES.ENROLLMENT,
     changeOrigin: true,
-    pathRewrite: (path) => '/api/enrollments' + path,
 }));
 
 // Member 4: Grade Service
 app.use('/api/grades', createProxyMiddleware({
     target: SERVICES.GRADE,
     changeOrigin: true,
-    pathRewrite: (path) => '/api/grades' + path,
 }));
 app.use('/api/gpa', createProxyMiddleware({
     target: SERVICES.GRADE,
     changeOrigin: true,
-    pathRewrite: (path) => '/api/gpa' + path,
 }));
 
 // ── Health Check ──────────────────────────────────────────────────
