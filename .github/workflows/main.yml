@@ -37,14 +37,14 @@ jobs:
           images: nuwanifonseka/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
-            type=sha,prefix=sha-
+            type=sha,prefix=sha-,value=${{ github.sha }}
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: nuwanifonseka/${{ env.IMAGE_NAME }}:${{ github.sha }},nuwanifonseka/${{ env.IMAGE_NAME }}:latest
           no-cache: true
 
   # ── Job 2: Deploy to Google Cloud Run ──────────────────────────
@@ -65,7 +65,7 @@ jobs:
         with:
           service: api-gateway
           region: us-central1
-          image: docker.io/nuwanifonseka/${{ env.IMAGE_NAME }}:latest
+          image: docker.io/nuwanifonseka/${{ env.IMAGE_NAME }}:${{ github.sha }}
           flags: --allow-unauthenticated --port=8080
           env_vars: |
             ENROLLMENT_SERVICE_URL=https://enrollment-service-763150334229.us-central1.run.app
