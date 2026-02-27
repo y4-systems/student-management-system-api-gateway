@@ -1,0 +1,736 @@
+openapi: 3.0.3
+info:
+  title: Student Management System — API Gateway
+  description: |
+    Unified API Gateway for the University Student Management System.
+    All requests are proxied to the appropriate microservice via the `/api` prefix.
+
+    ### Microservice Routing
+    | Prefix            | Target Service          |
+    |-------------------|-------------------------|
+    | `/api/students`   | Student & Auth Service  |
+    | `/api/auth`       | Student & Auth Service  |
+    | `/api/courses`    | Course Service          |
+    | `/api/enrollments`| Enrollment Service      |
+    | `/api/enroll`     | Enrollment Service      |
+    | `/api/grades`     | Grade Service           |
+    | `/api/gpa`        | Grade Service           |
+  version: 1.0.0
+  contact:
+    name: Y4 Systems — SE4010
+  license:
+    name: MIT
+
+servers:
+  - url: https://api-gateway-763150334229.us-central1.run.app
+    description: Production (Google Cloud Run)
+  - url: http://localhost:8080
+    description: Local Development
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from POST /api/auth/login
+
+  schemas:
+    # ── Student ─────────────────────────────
+    Student:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "60f7b2c9e1d3a4001f3e7a01"
+        name:
+          type: string
+          example: "Nuwan Fonseka"
+        email:
+          type: string
+          example: "nuwan@university.edu"
+        programme:
+          type: string
+          example: "BSc Computer Science"
+        status:
+          type: string
+          enum: [Active, Inactive, Graduated]
+          example: "Active"
+
+    # ── Auth ────────────────────────────────
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          example: "admin@university.edu"
+        password:
+          type: string
+          example: "password123"
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIs..."
+        user:
+          $ref: '#/components/schemas/Student'
+
+    # ── Course ──────────────────────────────
+    Course:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "60f7b2c9e1d3a4001f3e7b02"
+        name:
+          type: string
+          example: "Cloud Computing"
+        courseId:
+          type: string
+          example: "SE4010"
+        description:
+          type: string
+          example: "Introduction to cloud-native architectures"
+        credits:
+          type: integer
+          example: 3
+
+    # ── Enrollment ──────────────────────────
+    Enrollment:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "60f7b2c9e1d3a4001f3e7c03"
+        student_id:
+          type: string
+          example: "S1001"
+        course_id:
+          type: string
+          example: "C2002"
+        status:
+          type: string
+          enum: [ACTIVE, CANCELLED, WITHDRAWN, COMPLETED]
+          example: "ACTIVE"
+        enrolled_at:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    EnrollRequest:
+      type: object
+      required: [student_id, course_id]
+      properties:
+        student_id:
+          type: string
+          example: "S1001"
+        course_id:
+          type: string
+          example: "C2002"
+
+    # ── Grade ───────────────────────────────
+    Grade:
+      type: object
+      properties:
+        _id:
+          type: string
+        student_id:
+          type: string
+          example: "S1001"
+        course_id:
+          type: string
+          example: "C2002"
+        grade:
+          type: string
+          example: "A"
+        score:
+          type: number
+          example: 88.5
+        credits:
+          type: integer
+          example: 3
+        semester:
+          type: string
+          example: "2026-S1"
+
+    GPA:
+      type: object
+      properties:
+        student_id:
+          type: string
+        gpa:
+          type: number
+          example: 3.72
+
+    # ── Common ──────────────────────────────
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+
+tags:
+  - name: Gateway
+    description: API Gateway health & info
+  - name: Auth
+    description: Authentication (proxied to Student & Auth Service)
+  - name: Students
+    description: Student management (proxied to Student & Auth Service)
+  - name: Courses
+    description: Course catalog (proxied to Course Service)
+  - name: Enrollments
+    description: Enrollment management (proxied to Enrollment Service)
+  - name: Grades
+    description: Grade records & GPA (proxied to Grade Service)
+
+# ═══════════════════════════════════════════════
+#  PATHS
+# ═══════════════════════════════════════════════
+paths:
+  # ── Gateway ─────────────────────────────────
+  /health:
+    get:
+      tags: [Gateway]
+      summary: Gateway health check
+      responses:
+        '200':
+          description: Gateway is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "API Gateway is Running"
+
+  # ── Auth ────────────────────────────────────
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and get JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                  example: "Nuwan Fonseka"
+                email:
+                  type: string
+                  example: "nuwan@university.edu"
+                password:
+                  type: string
+                  example: "password123"
+      responses:
+        '201':
+          description: Student registered successfully
+        '400':
+          description: Validation error
+        '409':
+          description: Email already exists
+
+  /api/auth/validate:
+    get:
+      tags: [Auth]
+      summary: Validate JWT token
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+        '401':
+          description: Invalid or expired token
+
+  # ── Students ────────────────────────────────
+  /api/students:
+    get:
+      tags: [Students]
+      summary: Get all students
+      responses:
+        '200':
+          description: List of students
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Student'
+
+  /api/students/{id}:
+    get:
+      tags: [Students]
+      summary: Get student by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Student ID (MongoDB ObjectId or custom ID)
+      responses:
+        '200':
+          description: Student details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+        '404':
+          description: Student not found
+
+    put:
+      tags: [Students]
+      summary: Update student details
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Student'
+      responses:
+        '200':
+          description: Student updated
+        '404':
+          description: Student not found
+
+    delete:
+      tags: [Students]
+      summary: Delete a student
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Student deleted
+        '404':
+          description: Student not found
+
+  # ── Courses ─────────────────────────────────
+  /api/courses:
+    get:
+      tags: [Courses]
+      summary: Get all courses
+      responses:
+        '200':
+          description: List of courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Course'
+
+    post:
+      tags: [Courses]
+      summary: Create a new course
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, courseId]
+              properties:
+                name:
+                  type: string
+                  example: "Cloud Computing"
+                courseId:
+                  type: string
+                  example: "SE4010"
+                description:
+                  type: string
+                credits:
+                  type: integer
+                  example: 3
+      responses:
+        '201':
+          description: Course created
+        '400':
+          description: Validation error
+
+  /api/courses/{id}:
+    get:
+      tags: [Courses]
+      summary: Get course by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Course details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+        '404':
+          description: Course not found
+
+    put:
+      tags: [Courses]
+      summary: Update a course
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Course'
+      responses:
+        '200':
+          description: Course updated
+        '404':
+          description: Course not found
+
+    delete:
+      tags: [Courses]
+      summary: Delete a course
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Course deleted
+        '404':
+          description: Course not found
+
+  # ── Enrollments ─────────────────────────────
+  /api/enroll:
+    post:
+      tags: [Enrollments]
+      summary: Enroll a student in a course
+      description: |
+        Validates student and course via external services, creates enrollment, and triggers Grade Service to create a grade record.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollRequest'
+      responses:
+        '201':
+          description: Enrollment created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Enrollment created successfully"
+                  enrollment:
+                    $ref: '#/components/schemas/Enrollment'
+        '400':
+          description: Missing student_id or course_id
+        '401':
+          description: Unauthorized
+        '409':
+          description: Student already enrolled in this course
+        '503':
+          description: External microservice unreachable
+
+  /api/enroll/{id}:
+    delete:
+      tags: [Enrollments]
+      summary: Cancel an enrollment
+      description: Sets enrollment status to CANCELLED
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Enrollment record ID
+      responses:
+        '200':
+          description: Enrollment cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  enrollment:
+                    $ref: '#/components/schemas/Enrollment'
+        '400':
+          description: Already cancelled
+        '404':
+          description: Enrollment not found
+
+  /api/enrollments/student/{studentId}:
+    get:
+      tags: [Enrollments]
+      summary: Get enrollments by student
+      description: Returns all enrollments for a specific student (read-only)
+      parameters:
+        - in: path
+          name: studentId
+          required: true
+          schema:
+            type: string
+          description: The student ID
+      responses:
+        '200':
+          description: List of enrollments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Enrollment'
+        '404':
+          description: No enrollments found
+
+  /api/enrollments/course/{courseId}:
+    get:
+      tags: [Enrollments]
+      summary: Get course roster
+      description: Returns all students enrolled in a specific course
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema:
+            type: string
+          description: The course ID
+      responses:
+        '200':
+          description: List of enrollments (roster)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Enrollment'
+        '404':
+          description: No enrollments found
+
+  /api/enrollments/check:
+    get:
+      tags: [Enrollments]
+      summary: Check enrollment status
+      description: Internal validation endpoint — checks if a student is enrolled in a course
+      parameters:
+        - in: query
+          name: studentId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: courseId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Enrollment check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isEnrolled:
+                    type: boolean
+                  status:
+                    type: string
+                    nullable: true
+                  enrollment_id:
+                    type: string
+
+  /api/enrollments/{id}/status:
+    patch:
+      tags: [Enrollments]
+      summary: Update enrollment status
+      description: Update status to ACTIVE, CANCELLED, WITHDRAWN, or COMPLETED
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [ACTIVE, CANCELLED, WITHDRAWN, COMPLETED]
+      responses:
+        '200':
+          description: Status updated
+        '400':
+          description: Invalid status value
+        '404':
+          description: Enrollment not found
+
+  # ── Grades ──────────────────────────────────
+  /api/grades:
+    post:
+      tags: [Grades]
+      summary: Create a grade record
+      description: Usually triggered automatically by Enrollment Service after enrollment
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_id, course_id]
+              properties:
+                student_id:
+                  type: string
+                  example: "S1001"
+                course_id:
+                  type: string
+                  example: "C2002"
+      responses:
+        '201':
+          description: Grade record created
+
+  /api/grades/student/{studentId}:
+    get:
+      tags: [Grades]
+      summary: Get grades for a student
+      parameters:
+        - in: path
+          name: studentId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of grade records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Grade'
+        '404':
+          description: No grades found
+
+  /api/grades/{id}:
+    put:
+      tags: [Grades]
+      summary: Update a grade
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                grade:
+                  type: string
+                  example: "A"
+                score:
+                  type: number
+                  example: 88.5
+      responses:
+        '200':
+          description: Grade updated
+        '404':
+          description: Grade not found
+
+  /api/gpa/{studentId}:
+    get:
+      tags: [Grades]
+      summary: Get student GPA
+      parameters:
+        - in: path
+          name: studentId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Student GPA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GPA'
+        '404':
+          description: No grades found for this student

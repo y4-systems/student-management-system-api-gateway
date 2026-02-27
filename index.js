@@ -2,6 +2,9 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const morgan = require('morgan');
 const cors = require('cors');
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -9,6 +12,13 @@ const PORT = process.env.PORT || 8080;
 
 app.use(cors());
 app.use(morgan('dev'));
+
+// ── Swagger API Documentation ─────────────────────────────────────
+const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+    customCss: '.swagger-ui { background-color: #1a1a2e; } .swagger-ui .topbar { display: none; }',
+    customSiteTitle: 'Student Management System — API Docs',
+}));
 
 // ── Service URL Configuration ─────────────────────────────────────
 const SERVICES = {
@@ -56,7 +66,7 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('<h1>Student Management System API Gateway</h1><p>Use /api-docs on individual services to see documentation.</p>');
+    res.send('<h1>Student Management System API Gateway</h1><p>Visit <a href="/api-docs">/api-docs</a> for interactive API documentation.</p>');
 });
 
 app.listen(PORT, () => {
