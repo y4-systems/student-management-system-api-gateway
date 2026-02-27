@@ -525,6 +525,21 @@ paths:
         '404':
           description: Enrollment not found
 
+  /api/enrollments:
+    get:
+      tags: [Enrollments]
+      summary: Get all enrollments
+      description: Returns a list of all enrollment records in the system (proxied to Enrollment Service).
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all enrollments
+        '404':
+          description: No enrollments found
+        '500':
+          description: Internal server error
+
   /api/enrollments/student/{studentId}:
     get:
       tags: [Enrollments]
