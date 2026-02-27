@@ -13,27 +13,38 @@ const PORT = process.env.PORT || 8080;
 app.use(cors());
 app.use(morgan('dev'));
 
-// ── Swagger API Documentation ─────────────────────────────────────
+// Redirection fix for Swagger UI
+app.get('/api-docs', (req, res, next) => {
+    if (!req.url.endsWith('/')) {
+        return res.redirect(301, '/api-docs/');
+    }
+    next();
+});
+
 const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
     customCss: `
-        .swagger-ui { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .swagger-ui { background-color: #0b0f1a; color: #ffffff; font-family: 'Inter', system-ui, sans-serif; }
         .swagger-ui .topbar { display: none; }
-        .swagger-ui .info .title { color: #f8fafc !important; font-weight: 700; }
-        .swagger-ui .info p, .swagger-ui .info li, .swagger-ui .info table { color: #cbd5e1 !important; font-size: 14px; }
-        .swagger-ui .opblock-tag { color: #f8fafc !important; border-bottom: 1px solid #334155; font-size: 18px; }
-        .swagger-ui .opblock .opblock-summary-path { color: #f8fafc !important; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
-        .swagger-ui .opblock .opblock-summary-description { color: #94a3b8 !important; }
-        .swagger-ui .scheme-container { background: #1e293b !important; box-shadow: none; border: 1px solid #334155; border-radius: 12px; }
-        .swagger-ui .opblock { border-radius: 12px; overflow: hidden; border: 1px solid #334155; background: #1e293b !important; }
-        .swagger-ui section.models { border: 1px solid #334155; border-radius: 12px; }
-        .swagger-ui section.models h4 { color: #f8fafc !important; }
-        .swagger-ui .model-box { background: #0f172a !important; }
-        .swagger-ui select { background: #334155 !important; color: #f8fafc !important; border: 1px solid #475569; }
-        .swagger-ui .btn.authorize { color: #10b981 !important; border-color: #10b981 !important; background: transparent !important; }
-        .swagger-ui .btn.authorize svg { fill: #10b981 !important; }
+        .swagger-ui .info .title { color: #ffffff !important; font-weight: 800; letter-spacing: -0.025em; }
+        .swagger-ui .info p, .swagger-ui .info li, .swagger-ui .info table { color: #e2e8f0 !important; font-size: 15px; line-height: 1.6; }
+        .swagger-ui .opblock-tag { color: #ffffff !important; border-bottom: 2px solid #1e293b; font-size: 20px; font-weight: 700; margin: 24px 0 16px; }
+        .swagger-ui .opblock .opblock-summary-path { color: #ffffff !important; font-weight: 600; font-family: 'Fira Code', 'JetBrains Mono', monospace; font-size: 16px; }
+        .swagger-ui .opblock .opblock-summary-description { color: #cbd5e1 !important; font-weight: 500; }
+        .swagger-ui .scheme-container { background: #1a1f2e !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #2d3748; border-radius: 16px; margin: 20px 0; padding: 20px; }
+        .swagger-ui .opblock { border-radius: 16px; overflow: hidden; border: 1px solid #2d3748; background: #1a1f2e !important; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
+        .swagger-ui section.models { border: 1px solid #2d3748; border-radius: 16px; margin-top: 40px; }
+        .swagger-ui section.models h4 { color: #ffffff !important; font-weight: 700; }
+        .swagger-ui .model-box { background: #0b0f1a !important; border-radius: 8px; }
+        .swagger-ui select { background: #2d3748 !important; color: #ffffff !important; border: 1px solid #4a5568; border-radius: 8px; padding: 4px 8px; }
+        .swagger-ui .btn.authorize { color: #00ff9d !important; border-color: #00ff9d !important; background: rgba(0,255,157,0.1) !important; font-weight: 700; border-radius: 8px; transition: all 0.2s; }
+        .swagger-ui .btn.authorize:hover { background: rgba(0,255,157,0.2) !important; }
+        .swagger-ui .btn.authorize svg { fill: #00ff9d !important; }
+        .swagger-ui .opblock-summary { padding: 12px 16px; }
+        .swagger-ui .parameter__name { color: #ffffff !important; font-weight: 600; }
+        .swagger-ui .parameter__type { color: #a0aec0 !important; }
     `,
-    customSiteTitle: 'UniPortal API — Interactive Documentation',
+    customSiteTitle: 'UniPortal API Documentation',
 }));
 
 // ── Service URL Configuration ─────────────────────────────────────
