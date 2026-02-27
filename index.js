@@ -16,8 +16,24 @@ app.use(morgan('dev'));
 // ── Swagger API Documentation ─────────────────────────────────────
 const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
-    customCss: '.swagger-ui { background-color: #1a1a2e; } .swagger-ui .topbar { display: none; }',
-    customSiteTitle: 'Student Management System — API Docs',
+    customCss: `
+        .swagger-ui { background-color: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .swagger-ui .topbar { display: none; }
+        .swagger-ui .info .title { color: #f8fafc !important; font-weight: 700; }
+        .swagger-ui .info p, .swagger-ui .info li, .swagger-ui .info table { color: #cbd5e1 !important; font-size: 14px; }
+        .swagger-ui .opblock-tag { color: #f8fafc !important; border-bottom: 1px solid #334155; font-size: 18px; }
+        .swagger-ui .opblock .opblock-summary-path { color: #f8fafc !important; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .swagger-ui .opblock .opblock-summary-description { color: #94a3b8 !important; }
+        .swagger-ui .scheme-container { background: #1e293b !important; box-shadow: none; border: 1px solid #334155; border-radius: 12px; }
+        .swagger-ui .opblock { border-radius: 12px; overflow: hidden; border: 1px solid #334155; background: #1e293b !important; }
+        .swagger-ui section.models { border: 1px solid #334155; border-radius: 12px; }
+        .swagger-ui section.models h4 { color: #f8fafc !important; }
+        .swagger-ui .model-box { background: #0f172a !important; }
+        .swagger-ui select { background: #334155 !important; color: #f8fafc !important; border: 1px solid #475569; }
+        .swagger-ui .btn.authorize { color: #10b981 !important; border-color: #10b981 !important; background: transparent !important; }
+        .swagger-ui .btn.authorize svg { fill: #10b981 !important; }
+    `,
+    customSiteTitle: 'UniPortal API — Interactive Documentation',
 }));
 
 // ── Service URL Configuration ─────────────────────────────────────
