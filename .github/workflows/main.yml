@@ -45,8 +45,7 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=registry,ref=nuwanifonseka/${{ env.IMAGE_NAME }}:latest
-          cache-to: type=inline
+          no-cache: true
 
   # ── Job 2: Deploy to Google Cloud Run ──────────────────────────
   deploy:
