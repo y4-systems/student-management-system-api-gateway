@@ -7,9 +7,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 concurrency:
   group: api-gateway-${{ github.ref }}
   cancel-in-progress: true
@@ -25,6 +22,8 @@ jobs:
     name: CI Validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Code
@@ -49,6 +48,8 @@ jobs:
     needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     timeout-minutes: 20
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Code
@@ -112,7 +113,7 @@ jobs:
           image: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
           flags: --allow-unauthenticated --port=8080
           env_vars: |
-            ENROLLMENT_SERVICE_URL=https://enrollment-service-763150334229.us-central1.run.app
+            ENROLLMENT_SERVICE_URL=${{ secrets.ENROLLMENT_SERVICE_URL }}
             STUDENT_SERVICE_URL=${{ secrets.STUDENT_SERVICE_URL }}
             COURSE_SERVICE_URL=${{ secrets.COURSE_SERVICE_URL }}
             GRADE_SERVICE_URL=${{ secrets.GRADE_SERVICE_URL }}
