@@ -7,9 +7,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 concurrency:
   group: api-gateway-${{ github.ref }}
   cancel-in-progress: true
@@ -25,6 +22,8 @@ jobs:
     name: CI Validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Code
@@ -49,6 +48,8 @@ jobs:
     needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     timeout-minutes: 20
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Code
