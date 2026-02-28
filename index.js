@@ -4,14 +4,35 @@ const morgan = require('morgan');
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
+const jwt = require('jsonwebtoken');
 const path = require('path');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
 app.use(cors());
 app.use(morgan('dev'));
+app.use(express.json());
+
+// ── JWT Verification Middleware ───────────────────────────────────
+const verifyJWT = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (!token) {
+        return res.status(401).json({ message: 'Access token required' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(403).json({ message: 'Invalid or expired token' });
+        }
+        req.user = decoded;
+        next();
+    });
+};
 
 // Redirection fix for Swagger UI
 app.get('/api-docs', (req, res, next) => {
@@ -59,37 +80,114 @@ const SERVICES = {
 // We mount proxies at /api so Express strips the prefix before forwarding.
 // This follows the clean architecture rule: individual services should not care about /api.
 
-// Member 1: Student & Auth Service
-app.use('/api', createProxyMiddleware({
-    pathFilter: ['/students', '/auth'],
+// Public auth routes (no JWT required)
+app.use('/api/auth/login', createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
 }));
 
-// Member 2: Course Service
-app.use('/api', createProxyMiddleware({
-    pathFilter: '/courses',
+app.use('/api/auth/register', createProxyMiddleware({
+    target: SERVICES.STUDENT,
+    changeOrigin: true,
+}));
+
+// Protected auth routes (JWT required)
+app.use('/api/auth/validate', verifyJWT, createProxyMiddleware({
+    target: SERVICES.STUDENT,
+    changeOrigin: true,
+}));
+
+app.use('/api/auth', verifyJWT, createProxyMiddleware({
+    target: SERVICES.STUDENT,
+    changeOrigin: true,
+}));
+
+// Member 1: Student Service (authenticated)
+app.use('/api/students', verifyJWT, createProxyMiddleware({
+    target: SERVICES.STUDENT,
+    changeOrigin: true,
+}));
+
+// Member 2: Course Service 
+// GET /api/courses is public, POST/PUT/DELETE require JWT
+app.use('/api/courses', createProxyMiddleware({
     target: SERVICES.COURSE,
     changeOrigin: true,
+    onProxyReq: (proxyReq, req, res) => {
+        // Check if it's a write operation (POST, PUT, DELETE, PATCH)
+        if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+            const authHeader = req.headers['authorization'];
+            const token = authHeader && authHeader.split(' ')[1];
+            
+            if (!token) {
+                return res.status(401).json({ message: 'Access token required for this operation' });
+            }
+            
+            jwt.verify(token, JWT_SECRET, (err, decoded) => {
+                if (err) {
+                    return res.status(403).json({ message: 'Invalid or expired token' });
+                }
+                // Add user info to proxy request headers
+                proxyReq.setHeader('X-User-ID', decoded.id || decoded.sub);
+            });
+        }
+    },
 }));
 
-// Member 3: Enrollment Service (YOUR SERVICE)
-app.use('/api', createProxyMiddleware({
-    pathFilter: ['/enrollments', '/enroll'],
+// Member 3: Enrollment Service (authenticated)
+app.use('/api/enrollments', verifyJWT, createProxyMiddleware({
     target: SERVICES.ENROLLMENT,
     changeOrigin: true,
+    onProxyReq: (proxyReq, req, res) => {
+        proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
+    },
 }));
 
-// Member 4: Grade Service
-app.use('/api', createProxyMiddleware({
-    pathFilter: ['/grades', '/gpa'],
+app.use('/api/enroll', verifyJWT, createProxyMiddleware({
+    target: SERVICES.ENROLLMENT,
+    changeOrigin: true,
+    onProxyReq: (proxyReq, req, res) => {
+        proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
+    },
+}));
+
+// Member 4: Grade Service (authenticated)
+app.use('/api/grades', verifyJWT, createProxyMiddleware({
     target: SERVICES.GRADE,
     changeOrigin: true,
+    onProxyReq: (proxyReq, req, res) => {
+        proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
+    },
+}));
+
+app.use('/api/gpa', verifyJWT, createProxyMiddleware({
+    target: SERVICES.GRADE,
+    changeOrigin: true,
+    onProxyReq: (proxyReq, req, res) => {
+        proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
+    },
 }));
 
 // ── Health Check ──────────────────────────────────────────────────
 app.get('/health', (req, res) => {
     res.json({ status: 'API Gateway is Running' });
+});
+
+// ── Token Generation (for testing/internal use) ────────────────────
+app.post('/api/token/generate', (req, res) => {
+    const { userId, email, role } = req.body;
+    
+    if (!userId || !email) {
+        return res.status(400).json({ message: 'userId and email are required' });
+    }
+
+    const token = jwt.sign(
+        { id: userId, email, role: role || 'student' },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+    );
+
+    res.json({ token, expiresIn: '24h' });
 });
 
 app.get('/', (req, res) => {
@@ -99,8 +197,9 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 API Gateway running on port ${PORT}`);
     console.log(`🔗 Routing:`);
-    console.log(`   - /api/students/** -> ${SERVICES.STUDENT}`);
-    console.log(`   - /api/courses/**  -> ${SERVICES.COURSE}`);
-    console.log(`   - /api/enroll/**   -> ${SERVICES.ENROLLMENT}`);
-    console.log(`   - /api/grades/**   -> ${SERVICES.GRADE}`);
+    console.log(`   - /api/students/** -> ${SERVICES.STUDENT} (JWT Required)`);
+    console.log(`   - /api/courses/**  -> ${SERVICES.COURSE} (Write operations require JWT)`);
+    console.log(`   - /api/enroll/**   -> ${SERVICES.ENROLLMENT} (JWT Required)`);
+    console.log(`   - /api/grades/**   -> ${SERVICES.GRADE} (JWT Required)`);
+    console.log(`🔐 JWT Authentication: ${JWT_SECRET === 'your-secret-key-change-this-in-production' ? '⚠️  USING DEFAULT SECRET (CHANGE IN PRODUCTION)' : '✅ Configured'}`);
 });

@@ -545,6 +545,8 @@ paths:
       tags: [Enrollments]
       summary: Get enrollments by student
       description: Returns all enrollments for a specific student (read-only)
+      security:
+        - BearerAuth: []
       parameters:
         - in: path
           name: studentId
@@ -569,6 +571,8 @@ paths:
       tags: [Enrollments]
       summary: Get course roster
       description: Returns all students enrolled in a specific course
+      security:
+        - BearerAuth: []
       parameters:
         - in: path
           name: courseId
@@ -593,6 +597,8 @@ paths:
       tags: [Enrollments]
       summary: Check enrollment status
       description: Internal validation endpoint — checks if a student is enrolled in a course
+      security:
+        - BearerAuth: []
       parameters:
         - in: query
           name: studentId
@@ -682,6 +688,8 @@ paths:
     get:
       tags: [Grades]
       summary: Get grades for a student
+      security:
+        - BearerAuth: []
       parameters:
         - in: path
           name: studentId
@@ -734,6 +742,8 @@ paths:
     get:
       tags: [Grades]
       summary: Get student GPA
+      security:
+        - BearerAuth: []
       parameters:
         - in: path
           name: studentId
