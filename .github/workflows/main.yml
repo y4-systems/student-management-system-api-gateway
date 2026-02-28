@@ -5,17 +5,50 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-gateway-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   IMAGE_NAME: api-gateway
   NODE_VERSION: "18"
+  REGISTRY: docker.io
 
 jobs:
-  # ── Job 1: Build & Push to Docker Hub ──────────────────────────
+  # ── Job 1: CI Validation ────────────────────────────────────────
+  ci:
+    name: CI Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate JavaScript syntax
+        run: node --check index.js
+
+  # ── Job 2: Build & Push to Docker Hub ──────────────────────────
   docker-build-and-push:
     name: Build & Push to Docker Hub
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 20
 
     steps:
       - name: Checkout Code
@@ -36,24 +69,32 @@ jobs:
         with:
           images: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and Push Docker Image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
+          pull: true
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
-          cache-to: type=inline
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-  # ── Job 2: Deploy to Google Cloud Run ──────────────────────────
+  # ── Job 3: Deploy to Google Cloud Run ──────────────────────────
   deploy:
     name: Deploy to Google Cloud Run
     runs-on: ubuntu-latest
     needs: docker-build-and-push
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 15
+    environment: production
 
     steps:
       - name: Authenticate to Google Cloud
@@ -66,7 +107,7 @@ jobs:
         with:
           service: api-gateway
           region: us-central1
-          image: docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          image: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
           flags: --allow-unauthenticated --port=8080
           env_vars: |
             ENROLLMENT_SERVICE_URL=https://enrollment-service-763150334229.us-central1.run.app
@@ -77,4 +118,4 @@ jobs:
       - name: Summary
         run: |
           echo "✅ Deployment triggered for api-gateway"
-          echo "🐳 Image: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+          echo "🐳 Image: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
