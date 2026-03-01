@@ -45,10 +45,10 @@ components:
           example: "60f7b2c9e1d3a4001f3e7a01"
         name:
           type: string
-          example: "Nuwan Fonseka"
+          example: "Test Name"
         email:
           type: string
-          example: "nuwan@university.edu"
+          example: "test@university.edu"
         programme:
           type: string
           example: "BSc Computer Science"
@@ -76,11 +76,11 @@ components:
       properties:
         name:
           type: string
-          example: "Nuwan Fonseka"
+          example: "Test Name"
         email:
           type: string
           format: email
-          example: "nuwan@university.edu"
+          example: "test@university.edu"
         password:
           type: string
           minLength: 6
@@ -98,10 +98,10 @@ components:
         email:
           type: string
           format: email
-          example: "nuwan@university.edu"
+          example: "test@university.edu"
         name:
           type: string
-          example: "Nuwan Fonseka"
+          example: "Test Name"
         phone:
           type: string
           example: "0712345678"
@@ -260,6 +260,45 @@ paths:
                   status:
                     type: string
                     example: "API Gateway is Running"
+
+  /api/token/generate:
+    post:
+      tags: [Gateway]
+      summary: Generate JWT token (testing/internal)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, email]
+              properties:
+                userId:
+                  type: string
+                  example: "507f1f77bcf86cd799439011"
+                email:
+                  type: string
+                  format: email
+                  example: "test@university.edu"
+                role:
+                  type: string
+                  example: "student"
+      responses:
+        '200':
+          description: Token generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIs..."
+                  expiresIn:
+                    type: string
+                    example: "24h"
+        '400':
+          description: Missing required fields
 
   # ── Auth ────────────────────────────────────
   /api/auth/login:
