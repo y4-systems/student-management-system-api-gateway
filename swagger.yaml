@@ -64,10 +64,47 @@ components:
       properties:
         email:
           type: string
+          format: email
           example: "admin@university.edu"
         password:
           type: string
           example: "password123"
+
+    RegisterRequest:
+      type: object
+      required: [name, email, password, phone]
+      properties:
+        name:
+          type: string
+          example: "Nuwan Fonseka"
+        email:
+          type: string
+          format: email
+          example: "nuwan@university.edu"
+        password:
+          type: string
+          minLength: 6
+          example: "password123"
+        phone:
+          type: string
+          example: "0712345678"
+
+    RegisterResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        email:
+          type: string
+          format: email
+          example: "nuwan@university.edu"
+        name:
+          type: string
+          example: "Nuwan Fonseka"
+        phone:
+          type: string
+          example: "0712345678"
 
     LoginResponse:
       type: object
@@ -75,6 +112,9 @@ components:
         token:
           type: string
           example: "eyJhbGciOiJIUzI1NiIs..."
+        expiresIn:
+          type: string
+          example: "24h"
         user:
           $ref: '#/components/schemas/Student'
 
@@ -177,6 +217,15 @@ components:
         message:
           type: string
 
+    StatusUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ACTIVE, CANCELLED, WITHDRAWN, COMPLETED]
+          example: "COMPLETED"
+
 tags:
   - name: Gateway
     description: API Gateway health & info
@@ -242,25 +291,26 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [name, email, password]
-              properties:
-                name:
-                  type: string
-                  example: "Nuwan Fonseka"
-                email:
-                  type: string
-                  example: "nuwan@university.edu"
-                password:
-                  type: string
-                  example: "password123"
+              $ref: '#/components/schemas/RegisterRequest'
       responses:
         '201':
           description: Student registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
         '400':
           description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '409':
           description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/auth/validate:
     get:
@@ -326,6 +376,7 @@ paths:
           schema:
             type: string
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -389,6 +440,7 @@ paths:
                   example: "SE4010"
                 description:
                   type: string
+                  example: "Introduction to cloud-native architectures"
                 credits:
                   type: integer
                   example: 3
@@ -430,6 +482,7 @@ paths:
           schema:
             type: string
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -535,6 +588,12 @@ paths:
       responses:
         '200':
           description: List of all enrollments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Enrollment'
         '404':
           description: No enrollments found
         '500':
@@ -644,12 +703,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [status]
-              properties:
-                status:
-                  type: string
-                  enum: [ACTIVE, CANCELLED, WITHDRAWN, COMPLETED]
+              $ref: '#/components/schemas/StatusUpdateRequest'
       responses:
         '200':
           description: Status updated
@@ -721,6 +775,7 @@ paths:
           schema:
             type: string
       requestBody:
+        required: true
         content:
           application/json:
             schema:
