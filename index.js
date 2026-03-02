@@ -29,6 +29,7 @@ const forwardJsonBody = (proxyReq, req) => {
     proxyReq.setHeader('Content-Type', 'application/json');
     proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
     proxyReq.write(bodyData);
+    proxyReq.end();
 };
 
 const applyUserContextHeaders = (proxyReq, req) => {
