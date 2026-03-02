@@ -14,16 +14,19 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-pro
 
 app.use(cors());
 app.use(morgan('dev'));
-app.use(express.json());
+// express.json() removed globally to ensure body streams are preserved for proxies.
+
 
 // ── Utility Functions ──────────────────────────────────────────────
 const normalizeBaseUrl = (url) => String(url || '').replace(/\/+$/, '');
 const isWriteMethod = (method) => ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
 const DEFAULT_PROXY_TIMEOUT_MS = Number(process.env.PROXY_TIMEOUT_MS || 30000);
 
+
 const normalizeRole = (role) => {
     return typeof role === 'string' ? role.trim().toLowerCase() : '';
 };
+
 
 const forwardJsonBody = (proxyReq, req) => {
     if (!isWriteMethod(req.method)) return;
@@ -48,12 +51,15 @@ const applyUserContextHeaders = (proxyReq, req) => {
     if (role) {
         proxyReq.setHeader('X-User-Role', role);
     }
+
 };
 
 // ── JWT Verification Middleware ───────────────────────────────────
 const verifyJWT = (req, res, next) => {
     const authHeader = req.headers['authorization'];
+
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
 
     if (!token) {
         return res.status(401).json({ message: 'Access token required' });
@@ -71,20 +77,16 @@ const verifyJWT = (req, res, next) => {
 // ── Role-Based Authorization Middleware ────────────────────────────
 const requireRoles = (...allowedRoles) => {
     const normalizedAllowedRoles = allowedRoles.map(normalizeRole);
-
     return (req, res, next) => {
         if (!req.user) {
             return res.status(401).json({ message: 'Access token required' });
         }
-
         const role = normalizeRole(req.user.role);
-
         if (!normalizedAllowedRoles.includes(role)) {
             return res.status(403).json({
                 message: `Access denied. Required role: ${allowedRoles.join(' or ')}`,
             });
         }
-
         next();
     };
 };
@@ -92,22 +94,21 @@ const requireRoles = (...allowedRoles) => {
 const requireRolesForMethods = (methods, ...roles) => {
     const normalizedMethods = methods.map((method) => method.toUpperCase());
     const roleMiddleware = requireRoles(...roles);
-
     return (req, res, next) => {
         if (!normalizedMethods.includes(req.method.toUpperCase())) {
             return next();
         }
-
         return roleMiddleware(req, res, next);
     };
 };
+
 
 const requireJWTForWrite = (req, res, next) => {
     if (!isWriteMethod(req.method)) return next();
     return verifyJWT(req, res, next);
 };
 
-// Redirection fix for Swagger UI
+
 app.get('/api-docs', (req, res, next) => {
     if (!req.url.endsWith('/')) {
         return res.redirect(301, '/api-docs/');
@@ -287,10 +288,11 @@ app.use(['/api/gpa', '/gpa'], verifyJWT, requireRoles('admin', 'student'), gpaPr
 // ── Health Check ──────────────────────────────────────────────────
 app.get('/health', (req, res) => {
     res.json({ status: 'API Gateway is Running' });
+
 });
 
-// ── Token Generation (for testing/internal use) ────────────────────
-app.post('/api/token/generate', (req, res) => {
+// Token Generation (Internal/Testing) - Needs express.json()
+app.post('/api/token/generate', express.json(), (req, res) => {
     const { userId, email, role } = req.body;
     const normalizedRole = normalizeRole(role || 'student');
     const allowedRoles = ['admin', 'student'];
@@ -320,6 +322,7 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 API Gateway running on port ${PORT}`);
+
     console.log(`🔗 Routing:`);
     console.log(`   - /api/students/** -> ${SERVICES.STUDENT} (JWT + role: admin|student)`);
     console.log(`   - /api/courses/**  -> ${SERVICES.COURSE} (Public read, admin write)`);
@@ -330,4 +333,5 @@ app.listen(PORT, () => {
     if (JWT_SECRET === 'your-secret-key-change-this-in-production') {
         console.warn('JWT_SECRET is default. Set the same strong JWT_SECRET in both Gateway and Student Service.');
     }
+
 });
