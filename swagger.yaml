@@ -122,31 +122,6 @@ components:
         user:
           $ref: '#/components/schemas/Student'
 
-    TokenGenerateRequest:
-      type: object
-      required: [userId, email, role]
-      properties:
-        userId:
-          type: string
-          example: "507f1f77bcf86cd799439011"
-        email:
-          type: string
-          example: "student@university.edu"
-        role:
-          type: string
-          enum: [admin, student]
-          example: "student"
-
-    TokenGenerateResponse:
-      type: object
-      properties:
-        token:
-          type: string
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.sample.payload"
-        expiresIn:
-          type: string
-          example: "24h"
-
     # ── Course ──────────────────────────────
     Course:
       type: object
@@ -290,45 +265,6 @@ paths:
                     type: string
                     example: "API Gateway is Running"
 
-  /api/token/generate:
-    post:
-      tags: [Gateway]
-      summary: Generate JWT token (testing/internal)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [userId, email]
-              properties:
-                userId:
-                  type: string
-                  example: "507f1f77bcf86cd799439011"
-                email:
-                  type: string
-                  format: email
-                  example: "test@university.edu"
-                role:
-                  type: string
-                  example: "student"
-      responses:
-        '200':
-          description: Token generated successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  token:
-                    type: string
-                    example: "eyJhbGciOiJIUzI1NiIs..."
-                  expiresIn:
-                    type: string
-                    example: "24h"
-        '400':
-          description: Missing required fields
-
   # ── Auth ────────────────────────────────────
   /api/auth/login:
     post:
@@ -405,70 +341,13 @@ paths:
         '401':
           description: Invalid or expired token
 
-  /api/token/generate:
-    post:
-      tags: [Auth]
-      summary: Generate JWT token for testing
-      description: Generates a test JWT token with role `admin` or `student`.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TokenGenerateRequest'
-            examples:
-              adminTokenRequest:
-                summary: Generate admin token
-                value:
-                  userId: "507f1f77bcf86cd799439001"
-                  email: "admin@university.edu"
-                  role: "admin"
-              studentTokenRequest:
-                summary: Generate student token
-                value:
-                  userId: "507f1f77bcf86cd799439011"
-                  email: "student@university.edu"
-                  role: "student"
-      responses:
-        '200':
-          description: Token generated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TokenGenerateResponse'
-              examples:
-                adminTokenResponse:
-                  summary: Admin token response
-                  value:
-                    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.admin.payload"
-                    expiresIn: "24h"
-                studentTokenResponse:
-                  summary: Student token response
-                  value:
-                    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.student.payload"
-                    expiresIn: "24h"
-        '400':
-          description: Invalid input or unsupported role
-
   # ── Students ────────────────────────────────
-  /api/students:
-    get:
-      tags: [Students]
-      summary: Get all students
-      responses:
-        '200':
-          description: List of students
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Student'
-
   /api/students/{id}:
     get:
       tags: [Students]
       summary: Get student by ID
+      security:
+        - BearerAuth: []
       parameters:
         - in: path
           name: id
