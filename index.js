@@ -121,6 +121,7 @@ const enrollmentsProxy = createProxyMiddleware({
     onProxyReq: (proxyReq, req) => {
         if (req.user) {
             proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
+            proxyReq.setHeader('X-User-Role', req.user.role || 'student');
         }
     },
 });
@@ -132,6 +133,7 @@ const enrollProxy = createProxyMiddleware({
     onProxyReq: (proxyReq, req) => {
         if (req.user) {
             proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
+            proxyReq.setHeader('X-User-Role', req.user.role || 'student');
         }
     },
 });
@@ -143,6 +145,7 @@ const gradesProxy = createProxyMiddleware({
     onProxyReq: (proxyReq, req) => {
         if (req.user) {
             proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
+            proxyReq.setHeader('X-User-Role', req.user.role || 'student');
         }
     },
 });
@@ -154,6 +157,7 @@ const gpaProxy = createProxyMiddleware({
     onProxyReq: (proxyReq, req) => {
         if (req.user) {
             proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
+            proxyReq.setHeader('X-User-Role', req.user.role || 'student');
         }
     },
 });
