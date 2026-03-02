@@ -65,7 +65,7 @@ components:
         email:
           type: string
           format: email
-          example: "admin@university.edu"
+          example: "test@university.edu"
         password:
           type: string
           example: "password123"
@@ -88,6 +88,10 @@ components:
         phone:
           type: string
           example: "0712345678"
+        role:
+          type: string
+          enum: [admin, student]
+          example: "student"
 
     RegisterResponse:
       type: object
@@ -356,6 +360,15 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              studentRegister:
+                summary: Register as student
+                value:
+                  name: "Test Name"
+                  email: "test@university.edu"
+                  password: "password123"
+                  phone: "0712345678"
+                  role: "student"
       responses:
         '201':
           description: Student registered successfully
