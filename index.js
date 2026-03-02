@@ -43,14 +43,12 @@ const forwardJsonBody = (proxyReq, req) => {
 const applyUserContextHeaders = (proxyReq, req) => {
     if (!req.user) return;
     const userId = req.user.id || req.user.sub;
-    const role = normalizeRole(req.user.role);
+    const role = normalizeRole(req.user.role) || 'student';
 
     if (userId) {
         proxyReq.setHeader('X-User-ID', userId);
     }
-    if (role) {
-        proxyReq.setHeader('X-User-Role', role);
-    }
+    proxyReq.setHeader('X-User-Role', role);
 
 };
 
@@ -81,7 +79,8 @@ const requireRoles = (...allowedRoles) => {
         if (!req.user) {
             return res.status(401).json({ message: 'Access token required' });
         }
-        const role = normalizeRole(req.user.role);
+        // Default to 'student' role if not present (backward compatibility)
+        const role = normalizeRole(req.user.role) || 'student';
         if (!normalizedAllowedRoles.includes(role)) {
             return res.status(403).json({
                 message: `Access denied. Required role: ${allowedRoles.join(' or ')}`,
