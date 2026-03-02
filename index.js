@@ -18,6 +18,24 @@ app.use(express.json());
 
 const normalizeBaseUrl = (url) => String(url || '').replace(/\/+$/, '');
 const isWriteMethod = (method) => ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
+const DEFAULT_PROXY_TIMEOUT_MS = Number(process.env.PROXY_TIMEOUT_MS || 15000);
+
+const forwardJsonBody = (proxyReq, req) => {
+    if (!isWriteMethod(req.method)) return;
+    if (!req.body || typeof req.body !== 'object') return;
+    if (Object.keys(req.body).length === 0) return;
+
+    const bodyData = JSON.stringify(req.body);
+    proxyReq.setHeader('Content-Type', 'application/json');
+    proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+    proxyReq.write(bodyData);
+};
+
+const applyUserContextHeaders = (proxyReq, req) => {
+    if (!req.user) return;
+    proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
+    proxyReq.setHeader('X-User-Role', req.user.role || 'student');
+};
 
 // JWT Verification Middleware
 const verifyJWT = (req, res, next) => {
@@ -87,78 +105,100 @@ const toBasePath = (basePath, path) => {
 const studentAuthProxy = createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
     pathRewrite: () => '/auth/login',
+    onProxyReq: (proxyReq, req) => {
+        forwardJsonBody(proxyReq, req);
+    },
 });
 
 const studentRegisterProxy = createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
     pathRewrite: () => '/auth/register',
+    onProxyReq: (proxyReq, req) => {
+        forwardJsonBody(proxyReq, req);
+    },
 });
 
 const studentValidateProxy = createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
     pathRewrite: () => '/auth/validate',
 });
 
 const studentDataProxy = createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
     pathRewrite: (path) => toBasePath('/students', path),
+    onProxyReq: (proxyReq, req) => {
+        forwardJsonBody(proxyReq, req);
+    },
 });
 
 const courseProxy = createProxyMiddleware({
     target: SERVICES.COURSE,
     changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
     pathRewrite: (path) => toBasePath('/courses', path),
+    onProxyReq: (proxyReq, req) => {
+        forwardJsonBody(proxyReq, req);
+    },
 });
 
 const enrollmentsProxy = createProxyMiddleware({
     target: SERVICES.ENROLLMENT,
     changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
     pathRewrite: (path) => toBasePath('/enrollments', path),
     onProxyReq: (proxyReq, req) => {
-        if (req.user) {
-            proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
-            proxyReq.setHeader('X-User-Role', req.user.role || 'student');
-        }
+        applyUserContextHeaders(proxyReq, req);
+        forwardJsonBody(proxyReq, req);
     },
 });
 
 const enrollProxy = createProxyMiddleware({
     target: SERVICES.ENROLLMENT,
     changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
     pathRewrite: (path) => toBasePath('/enroll', path),
     onProxyReq: (proxyReq, req) => {
-        if (req.user) {
-            proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
-            proxyReq.setHeader('X-User-Role', req.user.role || 'student');
-        }
+        applyUserContextHeaders(proxyReq, req);
+        forwardJsonBody(proxyReq, req);
     },
 });
 
 const gradesProxy = createProxyMiddleware({
     target: SERVICES.GRADE,
     changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
     pathRewrite: (path) => toBasePath('/grades', path),
     onProxyReq: (proxyReq, req) => {
-        if (req.user) {
-            proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
-            proxyReq.setHeader('X-User-Role', req.user.role || 'student');
-        }
+        applyUserContextHeaders(proxyReq, req);
+        forwardJsonBody(proxyReq, req);
     },
 });
 
 const gpaProxy = createProxyMiddleware({
     target: SERVICES.GRADE,
     changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
     pathRewrite: (path) => toBasePath('/gpa', path),
     onProxyReq: (proxyReq, req) => {
-        if (req.user) {
-            proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
-            proxyReq.setHeader('X-User-Role', req.user.role || 'student');
-        }
+        applyUserContextHeaders(proxyReq, req);
+        forwardJsonBody(proxyReq, req);
     },
 });
 
