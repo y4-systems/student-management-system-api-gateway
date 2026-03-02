@@ -16,26 +16,50 @@ app.use(cors());
 app.use(morgan('dev'));
 // express.json() removed globally to ensure body streams are preserved for proxies.
 
-// ── Authentication & Authorization Helpers ───────────────────────────
-const getTokenFromHeader = (authHeader) => {
-    return authHeader && authHeader.split(' ')[1];
-};
+
+// ── Utility Functions ──────────────────────────────────────────────
+const normalizeBaseUrl = (url) => String(url || '').replace(/\/+$/, '');
+const isWriteMethod = (method) => ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
+const DEFAULT_PROXY_TIMEOUT_MS = Number(process.env.PROXY_TIMEOUT_MS || 30000);
+
 
 const normalizeRole = (role) => {
     return typeof role === 'string' ? role.trim().toLowerCase() : '';
 };
 
-const attachUserHeaders = (proxyReq, user) => {
-    if (!user) return;
-    const userId = user.id || user.sub;
-    const role = normalizeRole(user.role);
-    if (userId) proxyReq.setHeader('X-User-ID', userId);
-    if (role) proxyReq.setHeader('X-User-Role', role);
+
+const forwardJsonBody = (proxyReq, req) => {
+    if (!isWriteMethod(req.method)) return;
+    if (!req.body || typeof req.body !== 'object') return;
+    if (Object.keys(req.body).length === 0) return;
+
+    const bodyData = JSON.stringify(req.body);
+    proxyReq.setHeader('Content-Type', 'application/json');
+    proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+    proxyReq.write(bodyData);
+    proxyReq.end();
 };
 
+const applyUserContextHeaders = (proxyReq, req) => {
+    if (!req.user) return;
+    const userId = req.user.id || req.user.sub;
+    const role = normalizeRole(req.user.role);
+
+    if (userId) {
+        proxyReq.setHeader('X-User-ID', userId);
+    }
+    if (role) {
+        proxyReq.setHeader('X-User-Role', role);
+    }
+
+};
+
+// ── JWT Verification Middleware ───────────────────────────────────
 const verifyJWT = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    const token = getTokenFromHeader(authHeader);
+
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
 
     if (!token) {
         return res.status(401).json({ message: 'Access token required' });
@@ -50,6 +74,7 @@ const verifyJWT = (req, res, next) => {
     });
 };
 
+// ── Role-Based Authorization Middleware ────────────────────────────
 const requireRoles = (...allowedRoles) => {
     const normalizedAllowedRoles = allowedRoles.map(normalizeRole);
     return (req, res, next) => {
@@ -77,7 +102,13 @@ const requireRolesForMethods = (methods, ...roles) => {
     };
 };
 
-// ── Swagger UI ───────────────────────────────────────────────────────
+
+const requireJWTForWrite = (req, res, next) => {
+    if (!isWriteMethod(req.method)) return next();
+    return verifyJWT(req, res, next);
+};
+
+
 app.get('/api-docs', (req, res, next) => {
     if (!req.url.endsWith('/')) {
         return res.redirect(301, '/api-docs/');
@@ -111,82 +142,153 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
     customSiteTitle: 'UniPortal API Documentation',
 }));
 
-// ── Service URL Configuration ────────────────────────────────────────
+// ── Service URL Configuration ──────────────────────────────────────
 const SERVICES = {
-    STUDENT: process.env.STUDENT_SERVICE_URL || 'http://localhost:5001',
-    COURSE: process.env.COURSE_SERVICE_URL || 'http://localhost:5002',
-    ENROLLMENT: process.env.ENROLLMENT_SERVICE_URL || 'http://localhost:5003',
-    GRADE: process.env.GRADE_SERVICE_URL || 'http://localhost:5004',
+    STUDENT: normalizeBaseUrl(process.env.STUDENT_SERVICE_URL || 'http://localhost:5001'),
+    COURSE: normalizeBaseUrl(process.env.COURSE_SERVICE_URL || 'http://localhost:5002'),
+    ENROLLMENT: normalizeBaseUrl(process.env.ENROLLMENT_SERVICE_URL || 'http://localhost:5003'),
+    GRADE: normalizeBaseUrl(process.env.GRADE_SERVICE_URL || 'http://localhost:5004'),
 };
 
-// ── Proxy Configuration ──────────────────────────────────────────────
-const proxyOptions = {
+const toBasePath = (basePath, path) => {
+    if (path === '/' || path === '') return basePath;
+    return `${basePath}${path}`;
+};
+
+// ── Proxy Middleware Instances ─────────────────────────────────────
+const studentAuthProxy = createProxyMiddleware({
+    target: SERVICES.STUDENT,
     changeOrigin: true,
-    timeout: 30000,
-    proxyTimeout: 30000,
-};
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
+    pathRewrite: () => '/auth/login',
+    onProxyReq: (proxyReq, req) => {
+        forwardJsonBody(proxyReq, req);
+    },
+});
 
-// ── Routes & Proxies ─────────────────────────────────────────────────
-
-// 1. Auth Service Routes
-app.use(['/api/auth/login', '/auth/login'], createProxyMiddleware({
+const studentRegisterProxy = createProxyMiddleware({
     target: SERVICES.STUDENT,
-    ...proxyOptions,
-    pathRewrite: (path) => path.includes('/api') ? path.replace('/api', '') : path,
-}));
+    changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
+    pathRewrite: () => '/auth/register',
+    onProxyReq: (proxyReq, req) => {
+        forwardJsonBody(proxyReq, req);
+    },
+});
 
-app.use(['/api/auth/register', '/auth/register'], createProxyMiddleware({
+const studentValidateProxy = createProxyMiddleware({
     target: SERVICES.STUDENT,
-    ...proxyOptions,
-    pathRewrite: (path) => path.includes('/api') ? path.replace('/api', '') : path,
-}));
+    changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
+    pathRewrite: () => '/auth/validate',
+});
 
-app.use(['/api/auth/validate', '/auth/validate'], verifyJWT, createProxyMiddleware({
+const studentDataProxy = createProxyMiddleware({
     target: SERVICES.STUDENT,
-    ...proxyOptions,
-    pathRewrite: (path) => path.includes('/api') ? path.replace('/api', '') : path,
-}));
+    changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
+    pathRewrite: (path) => toBasePath('/students', path),
+    onProxyReq: (proxyReq, req) => {
+        forwardJsonBody(proxyReq, req);
+        applyUserContextHeaders(proxyReq, req);
+    },
+});
 
-// 2. Student Service (Role: Admin or Student)
-app.use(['/api/students', '/students'], verifyJWT, requireRoles('admin', 'student'), createProxyMiddleware({
-    target: SERVICES.STUDENT,
-    ...proxyOptions,
-    pathRewrite: (path) => path.includes('/api') ? path.replace('/api', '') : path,
-    onProxyReq: (proxyReq, req) => attachUserHeaders(proxyReq, req.user),
-}));
-
-// 3. Course Service (Public Read, Admin Write)
-app.use(['/api/courses', '/courses'], (req, res, next) => {
-    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method.toUpperCase())) return next();
-    return verifyJWT(req, res, () => requireRoles('admin')(req, res, next));
-}, createProxyMiddleware({
+const courseProxy = createProxyMiddleware({
     target: SERVICES.COURSE,
-    ...proxyOptions,
-    pathRewrite: (path) => path.includes('/api') ? path.replace('/api', '') : path,
-    onProxyReq: (proxyReq, req) => attachUserHeaders(proxyReq, req.user),
-}));
+    changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
+    pathRewrite: (path) => toBasePath('/courses', path),
+    onProxyReq: (proxyReq, req) => {
+        forwardJsonBody(proxyReq, req);
+        applyUserContextHeaders(proxyReq, req);
+    },
+});
 
-// 4. Enrollment Service (Role: Admin or Student)
-app.use(['/api/enrollments', '/enrollments', '/api/enroll', '/enroll'], verifyJWT, requireRoles('admin', 'student'), createProxyMiddleware({
+const enrollmentsProxy = createProxyMiddleware({
     target: SERVICES.ENROLLMENT,
-    ...proxyOptions,
-    pathRewrite: (path) => path.includes('/api') ? path.replace('/api', '') : path,
-    onProxyReq: (proxyReq, req) => attachUserHeaders(proxyReq, req.user),
-}));
+    changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
+    pathRewrite: (path) => toBasePath('/enrollments', path),
+    onProxyReq: (proxyReq, req) => {
+        applyUserContextHeaders(proxyReq, req);
+        forwardJsonBody(proxyReq, req);
+    },
+});
 
-// 5. Grade Service (Role: Admin or Student, Admin Write)
-app.use(['/api/grades', '/grades', '/api/gpa', '/gpa'], verifyJWT, requireRoles('admin', 'student'),
-    requireRolesForMethods(['POST', 'PUT', 'DELETE', 'PATCH'], 'admin'),
-    createProxyMiddleware({
-        target: SERVICES.GRADE,
-        ...proxyOptions,
-        pathRewrite: (path) => path.includes('/api') ? path.replace('/api', '') : path,
-        onProxyReq: (proxyReq, req) => attachUserHeaders(proxyReq, req.user),
-    }));
+const enrollProxy = createProxyMiddleware({
+    target: SERVICES.ENROLLMENT,
+    changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
+    pathRewrite: (path) => toBasePath('/enroll', path),
+    onProxyReq: (proxyReq, req) => {
+        applyUserContextHeaders(proxyReq, req);
+        forwardJsonBody(proxyReq, req);
+    },
+});
 
-// Health Check
-app.get(['/api/health', '/health'], (req, res) => {
-    res.json({ status: 'API Gateway is Running', services: SERVICES });
+const gradesProxy = createProxyMiddleware({
+    target: SERVICES.GRADE,
+    changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
+    pathRewrite: (path) => toBasePath('/grades', path),
+    onProxyReq: (proxyReq, req) => {
+        applyUserContextHeaders(proxyReq, req);
+        forwardJsonBody(proxyReq, req);
+    },
+});
+
+const gpaProxy = createProxyMiddleware({
+    target: SERVICES.GRADE,
+    changeOrigin: true,
+    proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
+    timeout: DEFAULT_PROXY_TIMEOUT_MS,
+    pathRewrite: (path) => toBasePath('/gpa', path),
+    onProxyReq: (proxyReq, req) => {
+        applyUserContextHeaders(proxyReq, req);
+        forwardJsonBody(proxyReq, req);
+    },
+});
+
+// ── Route Handlers with Role-Based Access Control ────────────────────
+
+// Auth routes
+app.use(['/api/auth/login', '/auth/login'], studentAuthProxy);
+app.use(['/api/auth/register', '/auth/register'], studentRegisterProxy);
+app.use(['/api/auth/validate', '/auth/validate'], verifyJWT, studentValidateProxy);
+
+// Student routes (JWT + admin/student)
+app.use(['/api/students', '/students'], verifyJWT, requireRoles('admin', 'student'), studentDataProxy);
+
+// Course routes (public read, admin write)
+app.use(['/api/courses', '/courses'], (req, res, next) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method.toUpperCase())) {
+        return next();
+    }
+
+    return verifyJWT(req, res, () => requireRoles('admin')(req, res, next));
+}, courseProxy);
+
+// Enrollment routes (JWT + admin/student)
+app.use(['/api/enrollments', '/enrollments'], verifyJWT, requireRoles('admin', 'student'), enrollmentsProxy);
+app.use(['/api/enroll', '/enroll'], verifyJWT, requireRoles('admin', 'student'), enrollProxy);
+
+// Grade routes (JWT + admin/student for read, admin only for write)
+app.use(['/api/grades', '/grades'], verifyJWT, requireRoles('admin', 'student'), requireRolesForMethods(['POST', 'PUT', 'DELETE', 'PATCH'], 'admin'), gradesProxy);
+app.use(['/api/gpa', '/gpa'], verifyJWT, requireRoles('admin', 'student'), gpaProxy);
+
+// ── Health Check ──────────────────────────────────────────────────
+app.get('/health', (req, res) => {
+    res.json({ status: 'API Gateway is Running' });
+
 });
 
 // Token Generation (Internal/Testing) - Needs express.json()
@@ -220,5 +322,16 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 API Gateway running on port ${PORT}`);
-    console.log(`🔐 JWT Authentication: ${JWT_SECRET === 'your-secret-key-change-this-in-production' ? '⚠️  USING DEFAULT SECRET' : '✅ Configured'}`);
+
+    console.log(`🔗 Routing:`);
+    console.log(`   - /api/students/** -> ${SERVICES.STUDENT} (JWT + role: admin|student)`);
+    console.log(`   - /api/courses/**  -> ${SERVICES.COURSE} (Public read, admin write)`);
+    console.log(`   - /api/enroll**/** -> ${SERVICES.ENROLLMENT} (JWT + role: admin|student)`);
+    console.log(`   - /api/grades/**   -> ${SERVICES.GRADE} (JWT + role: admin|student, admin write)`);
+    console.log(`🔐 JWT Authentication: ${JWT_SECRET === 'your-secret-key-change-this-in-production' ? '⚠️  USING DEFAULT SECRET (CHANGE IN PRODUCTION)' : '✅ Configured'}`);
+
+    if (JWT_SECRET === 'your-secret-key-change-this-in-production') {
+        console.warn('JWT_SECRET is default. Set the same strong JWT_SECRET in both Gateway and Student Service.');
+    }
+
 });
