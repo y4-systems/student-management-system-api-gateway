@@ -79,33 +79,45 @@ const SERVICES = {
     GRADE: normalizeBaseUrl(process.env.GRADE_SERVICE_URL || 'http://localhost:5004'),
 };
 
+const toBasePath = (basePath, path) => {
+    if (path === '/' || path === '') return basePath;
+    return `${basePath}${path}`;
+};
+
 const studentAuthProxy = createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
-    pathRewrite: { '^/api/auth': '/auth', '^/auth': '/auth' },
+    pathRewrite: () => '/auth/login',
+});
+
+const studentRegisterProxy = createProxyMiddleware({
+    target: SERVICES.STUDENT,
+    changeOrigin: true,
+    pathRewrite: () => '/auth/register',
+});
+
+const studentValidateProxy = createProxyMiddleware({
+    target: SERVICES.STUDENT,
+    changeOrigin: true,
+    pathRewrite: () => '/auth/validate',
 });
 
 const studentDataProxy = createProxyMiddleware({
     target: SERVICES.STUDENT,
     changeOrigin: true,
-    pathRewrite: { '^/api/students': '/students', '^/students': '/students' },
+    pathRewrite: (path) => toBasePath('/students', path),
 });
 
 const courseProxy = createProxyMiddleware({
     target: SERVICES.COURSE,
     changeOrigin: true,
-    pathRewrite: { '^/api/courses': '/courses', '^/courses': '/courses' },
+    pathRewrite: (path) => toBasePath('/courses', path),
 });
 
-const enrollmentProxy = createProxyMiddleware({
+const enrollmentsProxy = createProxyMiddleware({
     target: SERVICES.ENROLLMENT,
     changeOrigin: true,
-    pathRewrite: {
-        '^/api/enrollments': '/enrollments',
-        '^/enrollments': '/enrollments',
-        '^/api/enroll': '/enroll',
-        '^/enroll': '/enroll',
-    },
+    pathRewrite: (path) => toBasePath('/enrollments', path),
     onProxyReq: (proxyReq, req) => {
         if (req.user) {
             proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
@@ -113,15 +125,32 @@ const enrollmentProxy = createProxyMiddleware({
     },
 });
 
-const gradeProxy = createProxyMiddleware({
+const enrollProxy = createProxyMiddleware({
+    target: SERVICES.ENROLLMENT,
+    changeOrigin: true,
+    pathRewrite: (path) => toBasePath('/enroll', path),
+    onProxyReq: (proxyReq, req) => {
+        if (req.user) {
+            proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
+        }
+    },
+});
+
+const gradesProxy = createProxyMiddleware({
     target: SERVICES.GRADE,
     changeOrigin: true,
-    pathRewrite: {
-        '^/api/grades': '/grades',
-        '^/grades': '/grades',
-        '^/api/gpa': '/gpa',
-        '^/gpa': '/gpa',
+    pathRewrite: (path) => toBasePath('/grades', path),
+    onProxyReq: (proxyReq, req) => {
+        if (req.user) {
+            proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
+        }
     },
+});
+
+const gpaProxy = createProxyMiddleware({
+    target: SERVICES.GRADE,
+    changeOrigin: true,
+    pathRewrite: (path) => toBasePath('/gpa', path),
     onProxyReq: (proxyReq, req) => {
         if (req.user) {
             proxyReq.setHeader('X-User-ID', req.user.id || req.user.sub);
@@ -136,8 +165,8 @@ const requireJWTForWrite = (req, res, next) => {
 
 // Auth routes
 app.use(['/api/auth/login', '/auth/login'], studentAuthProxy);
-app.use(['/api/auth/register', '/auth/register'], studentAuthProxy);
-app.use(['/api/auth/validate', '/auth/validate'], verifyJWT, studentAuthProxy);
+app.use(['/api/auth/register', '/auth/register'], studentRegisterProxy);
+app.use(['/api/auth/validate', '/auth/validate'], verifyJWT, studentValidateProxy);
 
 // Student routes
 app.use(['/api/students', '/students'], verifyJWT, studentDataProxy);
@@ -146,10 +175,12 @@ app.use(['/api/students', '/students'], verifyJWT, studentDataProxy);
 app.use(['/api/courses', '/courses'], requireJWTForWrite, courseProxy);
 
 // Enrollment routes
-app.use(['/api/enrollments', '/enrollments', '/api/enroll', '/enroll'], verifyJWT, enrollmentProxy);
+app.use(['/api/enrollments', '/enrollments'], verifyJWT, enrollmentsProxy);
+app.use(['/api/enroll', '/enroll'], verifyJWT, enrollProxy);
 
 // Grade routes
-app.use(['/api/grades', '/grades', '/api/gpa', '/gpa'], verifyJWT, gradeProxy);
+app.use(['/api/grades', '/grades'], verifyJWT, gradesProxy);
+app.use(['/api/gpa', '/gpa'], verifyJWT, gpaProxy);
 
 // Health Check
 app.get('/health', (req, res) => {
