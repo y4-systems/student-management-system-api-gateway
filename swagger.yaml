@@ -78,6 +78,31 @@ components:
         user:
           $ref: '#/components/schemas/Student'
 
+    TokenGenerateRequest:
+      type: object
+      required: [userId, email, role]
+      properties:
+        userId:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        email:
+          type: string
+          example: "student@university.edu"
+        role:
+          type: string
+          enum: [admin, student]
+          example: "student"
+
+    TokenGenerateResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.sample.payload"
+        expiresIn:
+          type: string
+          example: "24h"
+
     # ── Course ──────────────────────────────
     Course:
       type: object
@@ -278,6 +303,51 @@ paths:
         '401':
           description: Invalid or expired token
 
+  /api/token/generate:
+    post:
+      tags: [Auth]
+      summary: Generate JWT token for testing
+      description: Generates a test JWT token with role `admin` or `student`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenGenerateRequest'
+            examples:
+              adminTokenRequest:
+                summary: Generate admin token
+                value:
+                  userId: "507f1f77bcf86cd799439001"
+                  email: "admin@university.edu"
+                  role: "admin"
+              studentTokenRequest:
+                summary: Generate student token
+                value:
+                  userId: "507f1f77bcf86cd799439011"
+                  email: "student@university.edu"
+                  role: "student"
+      responses:
+        '200':
+          description: Token generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenGenerateResponse'
+              examples:
+                adminTokenResponse:
+                  summary: Admin token response
+                  value:
+                    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.admin.payload"
+                    expiresIn: "24h"
+                studentTokenResponse:
+                  summary: Student token response
+                  value:
+                    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.student.payload"
+                    expiresIn: "24h"
+        '400':
+          description: Invalid input or unsupported role
+
   # ── Students ────────────────────────────────
   /api/students:
     get:
@@ -371,6 +441,7 @@ paths:
     post:
       tags: [Courses]
       summary: Create a new course
+      description: Requires JWT with role `admin`.
       security:
         - BearerAuth: []
       requestBody:
@@ -421,6 +492,7 @@ paths:
     put:
       tags: [Courses]
       summary: Update a course
+      description: Requires JWT with role `admin`.
       security:
         - BearerAuth: []
       parameters:
@@ -443,6 +515,7 @@ paths:
     delete:
       tags: [Courses]
       summary: Delete a course
+      description: Requires JWT with role `admin`.
       security:
         - BearerAuth: []
       parameters:
@@ -663,7 +736,7 @@ paths:
     post:
       tags: [Grades]
       summary: Create a grade record
-      description: Usually triggered automatically by Enrollment Service after enrollment
+      description: Usually triggered automatically by Enrollment Service after enrollment. Requires JWT with role `admin`.
       security:
         - BearerAuth: []
       requestBody:
@@ -688,6 +761,7 @@ paths:
     get:
       tags: [Grades]
       summary: Get grades for a student
+      description: Requires JWT with role `admin` or `student`.
       security:
         - BearerAuth: []
       parameters:
@@ -712,6 +786,7 @@ paths:
     put:
       tags: [Grades]
       summary: Update a grade
+      description: Requires JWT with role `admin`.
       security:
         - BearerAuth: []
       parameters:
@@ -742,6 +817,7 @@ paths:
     get:
       tags: [Grades]
       summary: Get student GPA
+      description: Requires JWT with role `admin` or `student`.
       security:
         - BearerAuth: []
       parameters:

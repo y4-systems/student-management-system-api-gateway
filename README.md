@@ -171,9 +171,9 @@ The API Gateway routes requests to microservices based on URL prefix:
 
 | Method | Path | Service | Auth | Description |
 |--------|------|---------|------|-------------|
-| `GET` | `/api/students/:id` | Student | ✅ Yes | Get student details |
-| `PUT` | `/api/students/:id` | Student | ✅ Yes | Update student |
-| `DELETE` | `/api/students/:id` | Student | ✅ Yes | Delete student |
+| `GET` | `/api/students/:id` | Student | ✅ Yes (`admin`/`student`) | Get student details |
+| `PUT` | `/api/students/:id` | Student | ✅ Yes (`admin`/`student`) | Update student |
+| `DELETE` | `/api/students/:id` | Student | ✅ Yes (`admin`/`student`) | Delete student |
 
 ### Course Routes
 
@@ -181,30 +181,30 @@ The API Gateway routes requests to microservices based on URL prefix:
 |--------|------|---------|------|-------------|
 | `GET` | `/api/courses` | Course | ❌ No | List courses |
 | `GET` | `/api/courses/:id` | Course | ❌ No | Get course details |
-| `POST` | `/api/courses` | Course | ✅ Yes | Create course (admin) |
-| `PUT` | `/api/courses/:id` | Course | ✅ Yes | Update course (admin) |
-| `DELETE` | `/api/courses/:id` | Course | ✅ Yes | Delete course (admin) |
+| `POST` | `/api/courses` | Course | ✅ Yes (`admin` only) | Create course |
+| `PUT` | `/api/courses/:id` | Course | ✅ Yes (`admin` only) | Update course |
+| `DELETE` | `/api/courses/:id` | Course | ✅ Yes (`admin` only) | Delete course |
 
 ### Enrollment Routes
 
 | Method | Path | Service | Auth | Description |
 |--------|------|---------|------|-------------|
-| `GET` | `/api/enrollments` | Enrollment | ✅ Yes | List enrollments |
-| `GET` | `/api/enrollments/:id` | Enrollment | ✅ Yes | Get enrollment |
-| `POST` | `/api/enroll` | Enrollment | ✅ Yes | Enroll in course |
-| `PUT` | `/api/enrollments/:id` | Enrollment | ✅ Yes | Update enrollment |
-| `DELETE` | `/api/enrollments/:id` | Enrollment | ✅ Yes | Remove enrollment |
+| `GET` | `/api/enrollments` | Enrollment | ✅ Yes (`admin`/`student`) | List enrollments |
+| `GET` | `/api/enrollments/:id` | Enrollment | ✅ Yes (`admin`/`student`) | Get enrollment |
+| `POST` | `/api/enroll` | Enrollment | ✅ Yes (`admin`/`student`) | Enroll in course |
+| `PUT` | `/api/enrollments/:id` | Enrollment | ✅ Yes (`admin`/`student`) | Update enrollment |
+| `DELETE` | `/api/enrollments/:id` | Enrollment | ✅ Yes (`admin`/`student`) | Remove enrollment |
 
 ### Grade Routes
 
 | Method | Path | Service | Auth | Description |
 |--------|------|---------|------|-------------|
-| `GET` | `/api/grades` | Grade | ✅ Yes | Get student grades |
-| `GET` | `/api/grades/:id` | Grade | ✅ Yes | Get grade details |
-| `POST` | `/api/grades` | Grade | ✅ Yes | Record grade |
-| `PUT` | `/api/grades/:id` | Grade | ✅ Yes | Update grade |
-| `DELETE` | `/api/grades/:id` | Grade | ✅ Yes | Delete grade |
-| `GET` | `/api/gpa` | Grade | ✅ Yes | Calculate GPA |
+| `GET` | `/api/grades` | Grade | ✅ Yes (`admin`/`student`) | Get student grades |
+| `GET` | `/api/grades/:id` | Grade | ✅ Yes (`admin`/`student`) | Get grade details |
+| `POST` | `/api/grades` | Grade | ✅ Yes (`admin` only) | Record grade |
+| `PUT` | `/api/grades/:id` | Grade | ✅ Yes (`admin` only) | Update grade |
+| `DELETE` | `/api/grades/:id` | Grade | ✅ Yes (`admin` only) | Delete grade |
+| `GET` | `/api/gpa` | Grade | ✅ Yes (`admin`/`student`) | Calculate GPA |
 
 ## 🔐 Authentication
 
@@ -220,15 +220,22 @@ The API Gateway routes requests to microservices based on URL prefix:
 
 3. Client makes authenticated request
    ├─ Includes Authorization header: Bearer <token>
-   └─ Gateway verifies token before forwarding
+  └─ Gateway verifies token and role before forwarding
 
 4. Gateway either:
-   ├─ ✅ Forwards to service with X-User-ID header
-   └─ ❌ Returns 401 (no token) or 403 (invalid token)
+  ├─ ✅ Forwards to service with X-User-ID and X-User-Role headers
+  └─ ❌ Returns 401 (no token) or 403 (invalid token / insufficient role)
 
 5. Service handles request
-   └─ Uses X-User-ID for authorization context
+  └─ Uses X-User-ID and X-User-Role for authorization context
 ```
+
+### Role Rules
+
+- Supported roles: `admin`, `student`
+- `admin` and `student`: all authenticated read/access routes
+- `admin` only: write operations on `/api/courses` and `/api/grades`
+- Unsupported roles are rejected when generating test tokens via `/api/token/generate`
 
 ### Generate Test Token
 
