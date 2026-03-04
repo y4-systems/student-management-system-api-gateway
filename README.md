@@ -20,7 +20,7 @@ A production-ready Express.js API Gateway for the Student Management System. Rou
 ## ✨ Features
 
 - **JWT Authentication** - Centralized token verification for all protected endpoints
-- **Service Routing** - Intelligent routing to 4 microservices (Student, Course, Enrollment, Grade)
+- **Service Routing** - Intelligent routing to 4 microservices (User, Course, Enrollment, Grade)
 - **CORS Support** - Cross-origin requests enabled for web and mobile clients
 - **Request Logging** - Morgan middleware logs all requests with method, status, and timing
 - **API Documentation** - Interactive Swagger UI with custom dark theme
@@ -50,7 +50,7 @@ A production-ready Express.js API Gateway for the Student Management System. Rou
    │                      │              │              │
    ▼                      ▼              ▼              ▼
 ┌──────────────┐  ┌─────────────┐  ┌──────────────┐  ┌───────────┐
-│   Student    │  │   Course    │  │ Enrollment   │  │  Grade    │
+│      User    │  │   Course    │  │ Enrollment   │  │  Grade    │
 │   Service    │  │   Service   │  │   Service    │  │  Service  │
 │ (Port 5001)  │  │ (Port 5002) │  │ (Port 5003)  │  │(Port 5004)│
 └──────────────┘  └─────────────┘  └──────────────┘  └───────────┘
@@ -163,17 +163,17 @@ The API Gateway routes requests to microservices based on URL prefix:
 
 | Method | Path | Service | Auth | Description |
 |--------|------|---------|------|-------------|
-| `POST` | `/api/auth/register` | Student | ❌ No | Register new student |
-| `POST` | `/api/auth/login` | Student | ❌ No | Login and get JWT token |
-| `GET` | `/api/auth/validate` | Student | ✅ Yes | Validate current token |
+| `POST` | `/api/auth/register` | User | ❌ No | Register new user |
+| `POST` | `/api/auth/login` | User | ❌ No | Login and get JWT token |
+| `GET` | `/api/auth/validate` | User | ✅ Yes | Validate current token |
 
-### Student Routes
+### User Routes
 
 | Method | Path | Service | Auth | Description |
 |--------|------|---------|------|-------------|
-| `GET` | `/api/students/:id` | Student | ✅ Yes (`admin`/`student`) | Get student details |
-| `PUT` | `/api/students/:id` | Student | ✅ Yes (`admin`/`student`) | Update student |
-| `DELETE` | `/api/students/:id` | Student | ✅ Yes (`admin`/`student`) | Delete student |
+| `GET` | `/api/students/:id` | User | ✅ Yes (`admin`/`student`) | Get student details |
+| `PUT` | `/api/students/:id` | User | ✅ Yes (`admin`/`student`) | Update student |
+| `DELETE` | `/api/students/:id` | User | ✅ Yes (`admin`/`student`) | Delete student |
 
 ### Course Routes
 
@@ -280,7 +280,7 @@ Open http://localhost:8080/api-docs in browser to:
 - **Dark Theme** - Custom CSS for dark mode Swagger UI
 - **Security Schemes** - Bearer Token configuration
 - **Service Routing Table** - Which service handles which prefix
-- **Schema Definitions** - Student, Course, Enrollment, Grade models
+- **Schema Definitions** - User, Course, Enrollment, Grade models
 
 ## 👨‍💻 Development
 

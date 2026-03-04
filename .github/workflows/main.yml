@@ -114,7 +114,7 @@ jobs:
           flags: --allow-unauthenticated --port=8080
           env_vars: |
             ENROLLMENT_SERVICE_URL=${{ secrets.ENROLLMENT_SERVICE_URL }}
-            STUDENT_SERVICE_URL=${{ secrets.STUDENT_SERVICE_URL }}
+            USER_SERVICE_URL=${{ secrets.USER_SERVICE_URL }}
             COURSE_SERVICE_URL=${{ secrets.COURSE_SERVICE_URL }}
             GRADE_SERVICE_URL=${{ secrets.GRADE_SERVICE_URL }}
 

@@ -252,9 +252,9 @@ tags:
   - name: Gateway
     description: API Gateway health & info
   - name: Auth
-    description: Authentication (proxied to Student & Auth Service)
+    description: Authentication (proxied to User Service)
   - name: Students
-    description: Student management (proxied to Student & Auth Service)
+    description: Student management (proxied to User Service)
   - name: Courses
     description: Course catalog (proxied to Course Service)
   - name: Enrollments
