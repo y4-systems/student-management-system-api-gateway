@@ -8,8 +8,8 @@ info:
     ### Microservice Routing
     | Prefix            | Target Service          |
     |-------------------|-------------------------|
-    | `/api/students`   | Student & Auth Service  |
-    | `/api/auth`       | Student & Auth Service  |
+    | `/api/students`   | User & Auth Service     |
+    | `/api/auth`       | User & Auth Service     |
     | `/api/courses`    | Course Service          |
     | `/api/enrollments`| Enrollment Service      |
     | `/api/enroll`     | Enrollment Service      |

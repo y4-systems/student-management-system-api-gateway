@@ -61,7 +61,7 @@ A production-ready Express.js API Gateway for the Student Management System. Rou
 - **Node.js**: 16+ (18+ recommended)
 - **npm**: 8+
 - **Microservices**: All 4 services running or accessible
-  - Student Service (Port 5001)
+  - User Service (Port 5001)
   - Course Service (Port 5002)
   - Enrollment Service (Port 5003)
   - Grade Service (Port 5004)
@@ -89,7 +89,7 @@ NODE_ENV=development
 JWT_SECRET=your-secret-key-change-this-in-production
 
 # Microservice URLs
-STUDENT_SERVICE_URL=http://localhost:5001
+USER_SERVICE_URL=http://localhost:5001
 COURSE_SERVICE_URL=http://localhost:5002
 ENROLLMENT_SERVICE_URL=http://localhost:5003
 GRADE_SERVICE_URL=http://localhost:5004
@@ -137,7 +137,7 @@ curl http://localhost:8080/health
 | `PORT` | `8080` | Gateway port |
 | `NODE_ENV` | `development` | Environment (development/production) |
 | `JWT_SECRET` | Required | Secret for JWT verification |
-| `STUDENT_SERVICE_URL` | `http://localhost:5001` | Student Service URL |
+| `USER_SERVICE_URL` | `http://localhost:5001` | User Service URL |
 | `COURSE_SERVICE_URL` | `http://localhost:5002` | Course Service URL |
 | `ENROLLMENT_SERVICE_URL` | `http://localhost:5003` | Enrollment Service URL |
 | `GRADE_SERVICE_URL` | `http://localhost:5004` | Grade Service URL |
@@ -149,7 +149,7 @@ Create `.env.example` with template values (included in repo):
 PORT=8080
 NODE_ENV=development
 JWT_SECRET=change-this-to-a-strong-secret
-STUDENT_SERVICE_URL=http://localhost:5001
+USER_SERVICE_URL=http://localhost:5001
 COURSE_SERVICE_URL=http://localhost:5002
 ENROLLMENT_SERVICE_URL=http://localhost:5003
 GRADE_SERVICE_URL=http://localhost:5004
@@ -212,8 +212,8 @@ The API Gateway routes requests to microservices based on URL prefix:
 
 ```
 1. Client calls POST /api/auth/login with credentials
-   ├─ Gateway forwards to Student Service
-   └─ Student Service validates, returns JWT
+   ├─ Gateway forwards to User Service
+   └─ User Service validates, returns JWT
 
 2. Client receives token in response
    └─ Stores in local storage or secure cookie
@@ -410,7 +410,7 @@ docker run -d \
   -p 8080:8080 \
   -e PORT=8080 \
   -e JWT_SECRET='your-strong-secret-key' \
-  -e STUDENT_SERVICE_URL='http://host.docker.internal:5001' \
+  -e USER_SERVICE_URL='http://host.docker.internal:5001' \
   -e COURSE_SERVICE_URL='http://host.docker.internal:5002' \
   -e ENROLLMENT_SERVICE_URL='http://host.docker.internal:5003' \
   -e GRADE_SERVICE_URL='http://host.docker.internal:5004' \
