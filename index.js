@@ -143,7 +143,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
 
 // ── Service URL Configuration ──────────────────────────────────────
 const SERVICES = {
-    STUDENT: normalizeBaseUrl(process.env.STUDENT_SERVICE_URL || 'http://localhost:5001'),
+    USER: normalizeBaseUrl(process.env.USER_SERVICE_URL || 'http://localhost:5001'),
     COURSE: normalizeBaseUrl(process.env.COURSE_SERVICE_URL || 'http://localhost:5002'),
     ENROLLMENT: normalizeBaseUrl(process.env.ENROLLMENT_SERVICE_URL || 'http://localhost:5003'),
     GRADE: normalizeBaseUrl(process.env.GRADE_SERVICE_URL || 'http://localhost:5004'),
@@ -155,8 +155,8 @@ const toBasePath = (basePath, path) => {
 };
 
 // ── Proxy Middleware Instances ─────────────────────────────────────
-const studentAuthProxy = createProxyMiddleware({
-    target: SERVICES.STUDENT,
+const userAuthProxy = createProxyMiddleware({
+    target: SERVICES.USER,
     changeOrigin: true,
     proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
     timeout: DEFAULT_PROXY_TIMEOUT_MS,
@@ -166,8 +166,8 @@ const studentAuthProxy = createProxyMiddleware({
     },
 });
 
-const studentRegisterProxy = createProxyMiddleware({
-    target: SERVICES.STUDENT,
+const userRegisterProxy = createProxyMiddleware({
+    target: SERVICES.USER,
     changeOrigin: true,
     proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
     timeout: DEFAULT_PROXY_TIMEOUT_MS,
@@ -177,16 +177,16 @@ const studentRegisterProxy = createProxyMiddleware({
     },
 });
 
-const studentValidateProxy = createProxyMiddleware({
-    target: SERVICES.STUDENT,
+const userValidateProxy = createProxyMiddleware({
+    target: SERVICES.USER,
     changeOrigin: true,
     proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
     timeout: DEFAULT_PROXY_TIMEOUT_MS,
     pathRewrite: () => '/auth/validate',
 });
 
-const studentDataProxy = createProxyMiddleware({
-    target: SERVICES.STUDENT,
+const userDataProxy = createProxyMiddleware({
+    target: SERVICES.USER,
     changeOrigin: true,
     proxyTimeout: DEFAULT_PROXY_TIMEOUT_MS,
     timeout: DEFAULT_PROXY_TIMEOUT_MS,
@@ -260,12 +260,12 @@ const gpaProxy = createProxyMiddleware({
 // ── Route Handlers with Role-Based Access Control ────────────────────
 
 // Auth routes
-app.use(['/api/auth/login', '/auth/login'], studentAuthProxy);
-app.use(['/api/auth/register', '/auth/register'], studentRegisterProxy);
-app.use(['/api/auth/validate', '/auth/validate'], verifyJWT, studentValidateProxy);
+app.use(['/api/auth/login', '/auth/login'], userAuthProxy);
+app.use(['/api/auth/register', '/auth/register'], userRegisterProxy);
+app.use(['/api/auth/validate', '/auth/validate'], verifyJWT, userValidateProxy);
 
 // Student routes (JWT + admin/student)
-app.use(['/api/students', '/students'], verifyJWT, requireRoles('admin', 'student'), studentDataProxy);
+app.use(['/api/students', '/students'], verifyJWT, requireRoles('admin', 'student'), userDataProxy);
 
 // Course routes (public read, admin write)
 app.use(['/api/courses', '/courses'], (req, res, next) => {
@@ -323,14 +323,14 @@ app.listen(PORT, () => {
     console.log(`🚀 API Gateway running on port ${PORT}`);
 
     console.log(`🔗 Routing:`);
-    console.log(`   - /api/students/** -> ${SERVICES.STUDENT} (JWT + role: admin|student)`);
+    console.log(`   - /api/students/** -> ${SERVICES.USER} (JWT + role: admin|student)`);
     console.log(`   - /api/courses/**  -> ${SERVICES.COURSE} (Public read, admin write)`);
     console.log(`   - /api/enroll**/** -> ${SERVICES.ENROLLMENT} (JWT + role: admin|student)`);
     console.log(`   - /api/grades/**   -> ${SERVICES.GRADE} (JWT + role: admin|student, admin write)`);
     console.log(`🔐 JWT Authentication: ${JWT_SECRET === 'your-secret-key-change-this-in-production' ? '⚠️  USING DEFAULT SECRET (CHANGE IN PRODUCTION)' : '✅ Configured'}`);
 
     if (JWT_SECRET === 'your-secret-key-change-this-in-production') {
-        console.warn('JWT_SECRET is default. Set the same strong JWT_SECRET in both Gateway and Student Service.');
+        console.warn('JWT_SECRET is default. Set the same strong JWT_SECRET in both Gateway and User Service.');
     }
 
 });
