@@ -110,6 +110,24 @@ components:
           type: string
           example: "0712345678"
 
+    ValidateResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        email:
+          type: string
+          format: email
+          example: "test@university.edu"
+        name:
+          type: string
+          example: "Test Name"
+        role:
+          type: string
+          enum: [admin, student]
+          example: "student"
+
     LoginResponse:
       type: object
       properties:
@@ -289,7 +307,7 @@ paths:
   /api/auth/register:
     post:
       tags: [Auth]
-      summary: Register a new student
+      summary: Register
       requestBody:
         required: true
         content:
@@ -337,7 +355,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Student'
+                $ref: '#/components/schemas/ValidateResponse'
         '401':
           description: Invalid or expired token
 
