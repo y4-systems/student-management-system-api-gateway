@@ -210,18 +210,26 @@ components:
         course_id:
           type: string
           example: "C2002"
+        marks:
+          type: number
+          minimum: 0
+          maximum: 100
+          nullable: true
+          example: 88.5
         grade:
           type: string
+          enum: [A, B, C, D, F]
+          nullable: true
           example: "A"
-        score:
-          type: number
-          example: 88.5
-        credits:
-          type: integer
-          example: 3
         semester:
           type: string
-          example: "2026-S1"
+          example: "S1"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
     GPA:
       type: object
@@ -736,6 +744,24 @@ paths:
 
   # ── Grades ──────────────────────────────────
   /api/grades:
+    get:
+      tags: [Grades]
+      summary: Get all grades
+      description: Returns all grade records, limit 100 most recent. Requires JWT with role `admin` or `student`.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of grade records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Grade'
+        '404':
+          description: No grades found
+
     post:
       tags: [Grades]
       summary: Create a grade record
@@ -756,15 +782,100 @@ paths:
                 course_id:
                   type: string
                   example: "C2002"
+                semester:
+                  type: string
+                  default: "S1"
+                  example: "S1"
       responses:
         '201':
           description: Grade record created
+        '400':
+          description: Invalid parameters or student not actively enrolled
+        '409':
+          description: Grade record already exists
+
+  /api/grades/course/{courseId}:
+    get:
+      tags: [Grades]
+      summary: Get grades by course
+      description: Returns all grade records for a course, enriched with student names. Requires JWT with role `admin` or `student`.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of grade records for the course
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/Grade'
+                    - type: object
+                      properties:
+                        student_name:
+                          type: string
+                          nullable: true
+        '404':
+          description: No grades found for this course
+
+  /api/grades/course/{courseId}/stats:
+    get:
+      tags: [Grades]
+      summary: Get course grade statistics
+      description: Returns aggregated stats (average, min, max, pass rate, grade distribution). Requires JWT with role `admin` or `student`.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: courseId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Course grade statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  course_id:
+                    type: string
+                  graded_count:
+                    type: integer
+                  average_marks:
+                    type: number
+                    nullable: true
+                  min_marks:
+                    type: number
+                    nullable: true
+                  max_marks:
+                    type: number
+                    nullable: true
+                  pass_rate:
+                    type: number
+                    nullable: true
+                  grade_distribution:
+                    type: object
+                    properties:
+                      A: { type: integer }
+                      B: { type: integer }
+                      C: { type: integer }
+                      D: { type: integer }
+                      F: { type: integer }
 
   /api/grades/student/{studentId}:
     get:
       tags: [Grades]
       summary: Get grades for a student
-      description: Requires JWT with role `admin` or `student`.
+      description: Returns all grade records for a student, enriched with course names. Requires JWT with role `admin` or `student`.
       security:
         - BearerAuth: []
       parameters:
@@ -781,15 +892,43 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Grade'
+                  allOf:
+                    - $ref: '#/components/schemas/Grade'
+                    - type: object
+                      properties:
+                        course_name:
+                          type: string
+                          nullable: true
         '404':
           description: No grades found
 
   /api/grades/{id}:
+    get:
+      tags: [Grades]
+      summary: Get a single grade by ID
+      description: Requires JWT with role `admin` or `student`.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Grade record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Grade'
+        '404':
+          description: Grade not found
+
     put:
       tags: [Grades]
-      summary: Update a grade
-      description: Requires JWT with role `admin`.
+      summary: Update marks for a grade
+      description: Assigns or updates marks (0–100). Grade letter is auto-calculated. Requires JWT with role `admin`.
       security:
         - BearerAuth: []
       parameters:
@@ -804,16 +943,36 @@ paths:
           application/json:
             schema:
               type: object
+              required: [marks]
               properties:
-                grade:
-                  type: string
-                  example: "A"
-                score:
+                marks:
                   type: number
-                  example: 88.5
+                  minimum: 0
+                  maximum: 100
+                  example: 88
       responses:
         '200':
           description: Grade updated
+        '400':
+          description: Invalid marks
+        '404':
+          description: Grade not found
+
+    delete:
+      tags: [Grades]
+      summary: Delete a grade record
+      description: Requires JWT with role `admin`.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Grade deleted
         '404':
           description: Grade not found
 
@@ -821,7 +980,7 @@ paths:
     get:
       tags: [Grades]
       summary: Get student GPA
-      description: Requires JWT with role `admin` or `student`.
+      description: Calculates GPA for graded courses. Optionally filter by semester with `?semester=S1`. Requires JWT with role `admin` or `student`.
       security:
         - BearerAuth: []
       parameters:
@@ -830,12 +989,33 @@ paths:
           required: true
           schema:
             type: string
+        - in: query
+          name: semester
+          required: false
+          schema:
+            type: string
+          description: Optional semester code (e.g. S1) to calculate GPA for a specific semester
       responses:
         '200':
           description: Student GPA
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GPA'
+                type: object
+                properties:
+                  student_id:
+                    type: string
+                  semester:
+                    type: string
+                    nullable: true
+                    description: Present when filtered by semester
+                  gpa:
+                    type: number
+                    nullable: true
+                    example: 3.72
+                  total_credits:
+                    type: number
+                  graded_courses:
+                    type: integer
         '404':
           description: No grades found for this student
